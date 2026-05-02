@@ -135,15 +135,13 @@ let ax = 0, ay = 0, az = 0;
 let sensorBuffer = [];
 const windowSize = 50; 
 
-// Python modelindeki alfabetik sıralamayla birebir aynı usta
+// Yeni modeldeki tüm olası sınıfları ve sayısal çıktıları güvenceye alıyoruz kral
 const sınıflar = ["kosma", "oturma", "yurume"]; 
 let sureler = { "oturma": 0, "yurume": 0, "kosma": 0 };
 
 function logYaz(mesaj) {
     const logBox = document.getElementById("durum");
-    if (logBox) {
-        logBox.innerText = mesaj;
-    }
+    if (logBox) logBox.innerText = mesaj;
     console.log(mesaj);
 }
 
@@ -162,7 +160,6 @@ function ekranDegistirVeIzinAl() {
             })
             .catch(err => logYaz("HATA: " + err));
     } else {
-        // Tarayıcı izin istemiyorsa (örneğin Android cihazlar) direkt başlatıyoruz usta
         document.getElementById("tanitim-ekrani").style.display = "none";
         document.getElementById("analiz-ekrani").style.display = "flex";
         baslat();
@@ -172,7 +169,6 @@ function ekranDegistirVeIzinAl() {
 function baslat() {
     logYaz("Sensör dinleniyor...");
     
-    // Model yüklendi mi kontrolü
     if (typeof score === 'undefined') {
         logYaz("HATA: model.js dosyası henüz yüklenemedi!");
         return;
@@ -189,7 +185,7 @@ function baslat() {
             
             if (sensorBuffer.length >= windowSize) {
                 tahminEt(sensorBuffer);
-                sensorBuffer = []; // Pencereyi temizle kral
+                sensorBuffer = []; 
             }
         } else {
             logYaz("Sensöre bağlandı ama veri gelmiyor...");
@@ -199,7 +195,6 @@ function baslat() {
 
 function tahminEt(data) {
     try {
-        // Yeni model sadece ax, ay, az ortalaması bekliyor
         let sumX = 0, sumY = 0, sumZ = 0;
         for (let i = 0; i < data.length; i++) {
             sumX += data[i][0];
@@ -214,21 +209,33 @@ function tahminEt(data) {
         ];
 
         // TAHMİNİ ÇALIŞTIR
-        let sonucIndex = score(inputFeatures); 
-        let tahminEdilen = sınıflar[sonucIndex];
-        
-        // EKRANI GÜNCELLE
-        document.getElementById("tahmin").innerText = tahminEdilen.toUpperCase();
-        logYaz("Analiz aktif!");
+        let sonuc = score(inputFeatures); 
+        let tahminEdilen = "oturma"; // Varsayılan değer
 
-        // SÜRELERİ GÜNCELLE
-        if (sureler[tahminEdilen] !== undefined) {
-            sureler[tahminEdilen]++;
-            const timeEl = document.getElementById(`time-${tahminEdilen}`);
-            if (timeEl) {
-                timeEl.innerText = sureler[tahminEdilen] + " sn";
-            }
+        // Eğer model sayı döndürürse (örneğin 0, 1, 2)
+        if (typeof sonuc === "number" && sınıflar[sonuc]) {
+            tahminEdilen = sınıflar[sonuc];
+        } 
+        // Eğer model direkt metin döndürürse (örneğin "oturma")
+        else if (typeof sonuc === "string") {
+            tahminEdilen = sonuc.toLowerCase();
         }
+
+        // Hata vermemesi için güvenli kontrol kral
+        if (tahminEdilen && typeof tahminEdilen === "string") {
+            document.getElementById("tahmin").innerText = tahminEdilen.toUpperCase();
+            logYaz("Analiz aktif!");
+
+            // Süreyi güncelle
+            if (sureler[tahminEdilen] !== undefined) {
+                sureler[tahminEdilen]++;
+                const timeEl = document.getElementById(`time-${tahminEdilen}`);
+                if (timeEl) timeEl.innerText = sureler[tahminEdilen] + " sn";
+            }
+        } else {
+            logYaz("Beklenmeyen tahmin sonucu: " + sonuc);
+        }
+
     } catch (e) {
         logYaz("TAHMİN HATASI: " + e.message);
     }
