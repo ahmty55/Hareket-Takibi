@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akıllı Sağlık ve Aktivite Takipçisi</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0f0f11;
+            color: #ffffff;
+            text-align: center;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 92vh;
+        }
+        h1 { font-size: 22px; color: #f5f5f7; margin-bottom: 0px; }
+        .vurgu-mavi { color: #0071e3; font-weight: bold; font-size: 13px; margin-top: 5px; }
+        
+        #tahmin-kutusu {
+            background: #1c1c1e;
+            border-radius: 16px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        #tahmin {
+            font-size: 42px;
+            font-weight: 800;
+            color: #00ff00;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        #durum { font-size: 14px; color: #86868b; }
+
+        /* Zaman Sayacı Alanı */
+        .ozet-tablosu {
+            background: #1c1c1e;
+            border-radius: 16px;
+            padding: 15px;
+            text-align: left;
+            margin-bottom: 15px;
+        }
+        .ozet-satir {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 16px;
+            border-bottom: 1px solid #2c2c2e;
+            padding-bottom: 4px;
+        }
+        .ozet-satir:last-child { border-bottom: none; }
+        .sure { font-weight: bold; color: #0a84ff; }
+
+        /* Uyarı Alanı */
+        #uyari-kutusu {
+            background-color: #ff453a;
+            color: white;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 15px;
+            display: none;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        button {
+            background-color: #34c759;
+            color: white;
+            border: none;
+            padding: 16px 36px;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 28px;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(52, 199, 89, 0.4);
+            width: 100%;
+        }
+        button:active { transform: scale(0.98); }
+    </style>
+</head>
+<body>
+
+    <div>
+        <h1>AKTİVİTE TAKİP ASİSTANI</h1>
+        <div class="vurgu-mavi">7/24 SAĞLIK TAKİBİ</div>
+    </div>
+
+    <div id="uyari-kutusu">
+        ⚠️ ÇOK OTURDUN KRAL! BİRAZ HAREKET ET!
+    </div>
+
+    <div id="tahmin-kutusu">
+        <div id="durum">Sensör izni bekleniyor...</div>
+        <div id="tahmin">HAZIR</div>
+    </div>
+
+    <div class="ozet-tablosu">
+        <h3 style="margin-top:0; color:#86868b; font-size:14px;">GÜNLÜK AKTİVİTE ÖZETİ</h3>
+        <div class="ozet-satir"><span>Oturma Süresi:</span> <span id="time-oturma" class="sure">0 sn</span></div>
+        <div class="ozet-satir"><span>Yürüme Süresi:</span> <span id="time-yurume" class="sure">0 sn</span></div>
+        <div class="ozet-satir"><span>Koşma Süresi:</span> <span id="time-kosma" class="sure">0 sn</span></div>
+        <div class="ozet-satir"><span>Zıplama Süresi:</span> <span id="time-ziplama" class="sure">0 sn</span></div>
+        <div class="ozet-satir"><span>Merdiven Süresi:</span> <span id="time-merdiven" class="sure">0 sn</span></div>
+    </div>
+
+    <div>
+        <button id="startBtn" onclick="izniAl()">SİSTEMİ BAŞLAT</button>
+    </div>
+
+    <script src="model.js"></script>
+
+    <script>
+        let ax = 0, ay = 0, az = 0;
+        let sensorBuffer = [];
+        const windowSize = 50; 
+
+        const sınıflar = ["kosma", "merdiven", "oturma", "yurume", "ziplama"];
+        
+        // Saniye Sayaçları
+        let sureler = { "oturma": 0, "yurume": 0, "kosma": 0, "ziplama": 0, "merdiven": 0 };
+        
+        // Uyarı Takibi
+        let araliksizOturmaSuresi = 0;
+        const OTURMA_UYARI_LIMITI = 10; // Test için 10 saniye yaptım kral! Gerçek hayatta 600 (10dk) yapabilirsin.
+
+        function izniAl() {
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') { baslat(); }
+                        else { alert("Kral izni vermen lazım."); }
+                    })
+                    .catch(console.error);
+            } else {
+                baslat();
+            }
+        }
+
+        function baslat() {
+            document.getElementById("startBtn").style.display = "none";
+            document.getElementById("durum").innerText = "Takip aktif. Telefonu cebine koyabilirsin.";
+
+            window.addEventListener('devicemotion', (event) => {
+                ax = event.accelerationIncludingGravity.x || 0;
+                ay = event.accelerationIncludingGravity.y || 0;
+                az = event.accelerationIncludingGravity.z || 0;
+
+                sensorBuffer.push([ax, ay, az]);
+
+                if (sensorBuffer.length >= windowSize) {
+                    tahminEt(sensorBuffer);
+                    sensorBuffer = []; 
+                }
+            });
+        }
+
+        function tahminEt(data) {
+            let sumX = 0, sumY = 0, sumZ = 0;
+            let mags = [];
+
+            for (let i = 0; i < data.length; i++) {
+                sumX += data[i][0]; sumY += data[i][1]; sumZ += data[i][2];
+                mags.push(Math.sqrt(data[i][0]**2 + data[i][1]**2 + data[i][2]**2));
+            }
+
+            let meanX = sumX / data.length;
+            let meanY = sumY / data.length;
+            let meanZ = sumZ / data.length;
+
+            let inputFeatures = [
+                meanX, meanY, meanZ,
+                0, 0, 0,
+                Math.max(...data.map(d => d[0])), Math.max(...data.map(d => d[1])), Math.max(...data.map(d => d[2])),
+                Math.min(...data.map(d => d[0])), Math.min(...data.map(d => d[1])), Math.min(...data.map(d => d[2])),
+                0, 0, 0,
+                mags.reduce((a, b) => a + b, 0) / mags.length,
+                0
+            ];
+
+            try {
+                let sonucIndex = score(inputFeatures);
+                let tahminEdilen = sınıflar[sonucIndex] || "Bilinmiyor";
+                
+                document.getElementById("tahmin").innerText = tahminEdilen;
+
+                // Renkleri Değiştir
+                const renkler = { "kosma": "#ff453a", "yurume": "#0a84ff", "oturma": "#ff9f0a", "ziplama": "#bf5af2", "merdiven": "#ffd60a" };
+                document.getElementById("tahmin").style.color = renkler[tahminEdilen] || "#30d158";
+
+                // --- ZAMAN SAYAÇLARINI GÜNCELLE ---
+                // Her başarılı tahminde o aktiviteye 1 saniye ekliyoruz
+                if (sureler.hasOwnProperty(tahminEdilen)) {
+                    sureler[tahminEdilen] += 1;
+                    
+                    // Saniyeleri ekrana güzelce formatlayıp yazdır
+                    document.getElementById(`time-${tahminEdilen}`).innerText = formatSure(sureler[tahminEdilen]);
+                }
+
+                // --- HAREKETSİZLİK / OTURMA KONTROLÜ ---
+                if (tahminEdilen === "oturma") {
+                    araliksizOturmaSuresi += 1;
+                    if (araliksizOturmaSuresi >= OTURMA_UYARI_LIMITI) {
+                        // Uyarıyı göster ve telefonu titret (varsa)
+                        document.getElementById("uyari-kutusu").style.display = "block";
+                        if (navigator.vibrate) { navigator.vibrate([500, 200, 500]); }
+                    }
+                } else {
+                    // Kişi kalkıp yürüdü veya başka bir şey yaptıysa oturma sayacı sıfırlanır
+                    araliksizOturmaSuresi = 0;
+                    document.getElementById("uyari-kutusu").style.display = "none";
+                }
+
+            } catch (e) {
+                console.error("Hata:", e);
+            }
+        }
+
+        // Saniyeyi Dakika ve Saniye cinsine çeviren yardımcı fonksiyon
+        function formatSure(saniye) {
+            if (saniye < 60) return saniye + " sn";
+            let dk = Math.floor(saniye / 60);
+            let sn = saniye % 60;
+            return dk + " dk " + sn + " sn";
+        }
+    </script>
+</body>
+</html>
