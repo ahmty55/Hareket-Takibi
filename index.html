@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aktivite & Sağlık Asistanı - Tanıtım</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #09090b;
+            --card-bg: #18181b;
+            --border-color: #27272a;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --text-main: #f4f4f5;
+            --text-muted: #71717a;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 90vh;
+        }
+
+        /* Hero / Başlık Kısmı */
+        .hero {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .badge {
+            display: inline-block;
+            background-color: rgba(59, 130, 246, 0.1);
+            color: var(--accent-blue);
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+        h1 {
+            font-size: 28px;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #ffffff, #a1a1aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .desc {
+            font-size: 15px;
+            color: var(--text-muted);
+            margin-top: 10px;
+            line-height: 1.5;
+        }
+
+        /* Kartlar Bölümü */
+        .cards-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: left;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .card:active {
+            transform: scale(0.98);
+            border-color: var(--accent-blue);
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #e4e4e7;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Yönlendirme Butonları */
+        .btn {
+            display: block;
+            text-align: center;
+            text-decoration: none;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 14px;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+        .btn-secondary {
+            background: var(--card-bg);
+            color: #e4e4e7;
+            border: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="hero">
+        <span class="badge">🤖 Yapay Zeka Destekli</span>
+        <h1>Aktivite Takip Asistanı</h1>
+        <p class="desc">Telefonunun sensörlerini kullanarak gün içindeki hareketlerini analiz eder, çok oturduğunda seni uyarır ve sağlıklı kalmanı sağlar.</p>
+    </div>
+
+    <div class="cards-grid">
+        <div class="card">
+            <div class="card-title">🚶 Canlı Hareket Analizi</div>
+            <div class="card-desc">Yürüme, koşma, zıplama, oturma ve merdiven çıkma gibi hareketlerini şak diye ayırt eder.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">⏰ Hareketsizlik Uyarısı</div>
+            <div class="card-desc">10 dakikadan fazla oturduğunda sana bildirim verir ve harekete geçirir.</div>
+        </div>
+    </div>
+
+    <div>
+        <a href="https://drive.google.com/YOUR-DRIVE-LINK-HERE" target="_blank" class="btn btn-primary">
+            📲 APK Olarak İndir (Google Drive)
+        </a>
+
+        <a href="app.html" class="btn btn-secondary">
+            🌐 Tarayıcıdan Başlat (Web Sürümü)
+        </a>
+    </div>
+
+</body>
+</html>
