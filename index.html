@@ -3,150 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aktivite & Sağlık Asistanı - Tanıtım</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <title>İvmeÖlçer | Hareketini Yakala</title>
+    <!-- Fontlar ve İkonlar -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
         :root {
-            --bg-color: #09090b;
-            --card-bg: #18181b;
-            --border-color: #27272a;
-            --accent-blue: #3b82f6;
-            --accent-green: #10b981;
-            --text-main: #f4f4f5;
-            --text-muted: #71717a;
+            --primary: #6366f1;
+            --secondary: #a855f7;
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text: #f8fafc;
         }
 
-        body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            margin: 0;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            min-height: 90vh;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg); color: var(--text); overflow-x: hidden; scroll-behavior: smooth; }
 
-        /* Hero / Başlık Kısmı */
-        .hero {
-            text-align: center;
-            margin-bottom: 32px;
+        /* --- NAVBAR --- */
+        nav {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1.5rem 10%; position: fixed; width: 100%; top: 0;
+            background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); z-index: 1000;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
-        .badge {
-            display: inline-block;
-            background-color: rgba(59, 130, 246, 0.1);
-            color: var(--accent-blue);
-            font-size: 12px;
-            font-weight: 600;
-            padding: 6px 12px;
-            border-radius: 20px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 12px;
-        }
-        h1 {
-            font-size: 28px;
-            font-weight: 800;
-            margin: 0;
-            letter-spacing: -0.5px;
-            background: linear-gradient(to right, #ffffff, #a1a1aa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .desc {
-            font-size: 15px;
-            color: var(--text-muted);
-            margin-top: 10px;
-            line-height: 1.5;
-        }
+        .logo { font-weight: 800; font-size: 1.5rem; background: linear-gradient(to right, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-links { display: flex; gap: 2rem; list-style: none; }
+        .nav-links a { color: var(--text); text-decoration: none; font-weight: 500; transition: 0.3s; }
+        .nav-links a:hover { color: var(--primary); }
 
-        /* Kartlar Bölümü */
-        .cards-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            margin-bottom: 32px;
+        /* --- HEADER (HERO) --- */
+        header {
+            height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; background: radial-gradient(circle at top right, #1e1b4b, transparent);
+            padding: 0 10%;
         }
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 20px;
-            text-align: left;
-            transition: transform 0.2s ease, border-color 0.2s ease;
+        header h1 { font-size: 4rem; margin-bottom: 1rem; animation: fadeInUp 1s ease; }
+        header p { font-size: 1.2rem; color: #94a3b8; max-width: 600px; animation: fadeInUp 1.2s ease; }
+        .btn-main {
+            margin-top: 2rem; padding: 1rem 2.5rem; border-radius: 50px; border: none;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            color: white; font-weight: bold; cursor: pointer; transition: 0.3s;
+            animation: fadeInUp 1.4s ease; text-decoration: none;
         }
-        .card:active {
-            transform: scale(0.98);
-            border-color: var(--accent-blue);
-        }
-        .card-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #e4e4e7;
-            margin-bottom: 6px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .card-desc {
-            font-size: 13px;
-            color: var(--text-muted);
-            line-height: 1.4;
-        }
+        .btn-main:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(99, 102, 241, 0.5); }
 
-        /* Yönlendirme Butonları */
-        .btn {
-            display: block;
-            text-align: center;
-            text-decoration: none;
-            padding: 16px;
-            font-size: 16px;
-            font-weight: 600;
-            border-radius: 14px;
-            margin-bottom: 12px;
-            transition: all 0.2s ease;
+        /* --- AKTİVİTE KARTLARI (GRID) --- */
+        .section-title { text-align: center; margin: 4rem 0 2rem; font-size: 2.5rem; }
+        .grid-container {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem; padding: 0 10% 4rem;
         }
-        .btn-primary {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            color: white;
-            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        .aktivite-kart {
+            background: var(--card-bg); padding: 2rem; border-radius: 20px;
+            text-align: center; border: 1px solid rgba(255,255,255,0.05);
+            transition: 0.4s; position: relative; overflow: hidden;
         }
-        .btn-secondary {
-            background: var(--card-bg);
-            color: #e4e4e7;
-            border: 1px solid var(--border-color);
+        .aktivite-kart i { font-size: 3rem; margin-bottom: 1rem; color: var(--primary); }
+        .aktivite-kart.aktif {
+            border-color: var(--primary); box-shadow: 0 0 15px var(--primary);
+            background: rgba(99, 102, 241, 0.15);
+        }
+        .aktivite-kart h3 { margin-bottom: 0.5rem; }
+        .time-badge { font-size: 0.9rem; color: var(--secondary); font-weight: bold; }
+
+        /* --- FOTOĞRAF YÜKLEME ALANI --- */
+        .upload-section {
+            background: rgba(30, 41, 59, 0.4); padding: 4rem 10%; text-align: center;
+            border-radius: 50px 50px 0 0; margin-top: 4rem;
+        }
+        .upload-box {
+            border: 2px dashed #475569; padding: 3rem; border-radius: 20px;
+            cursor: pointer; transition: 0.3s; margin: 2rem auto; max-width: 500px;
+        }
+        .upload-box:hover { border-color: var(--primary); background: rgba(99, 102, 241, 0.05); }
+        #preview { width: 100%; max-width: 400px; margin-top: 1rem; border-radius: 10px; display: none; }
+
+        /* --- FOOTER --- */
+        footer {
+            padding: 3rem 10%; background: #020617; text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .social-links { margin: 1rem 0; font-size: 1.5rem; display: flex; justify-content: center; gap: 1.5rem; }
+        .social-links a { color: #64748b; transition: 0.3s; }
+        .social-links a:hover { color: var(--primary); }
+
+        /* --- ANIMASYONLAR --- */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 <body>
 
-    <div class="hero">
-        <span class="badge">🤖 Yapay Zeka Destekli</span>
-        <h1>Aktivite Takip Asistanı</h1>
-        <p class="desc">Telefonunun sensörlerini kullanarak gün içindeki hareketlerini analiz eder, çok oturduğunda seni uyarır ve sağlıklı kalmanı sağlar.</p>
-    </div>
+    <nav>
+        <div class="logo">İVMEÖLÇER</div>
+        <ul class="nav-links">
+            <li><a href="#home">Ana Sayfa</a></li>
+            <li><a href="#about">Nasıl Çalışır?</a></li>
+            <li><a href="#tracking">Canlı Takip</a></li>
+            <li><a href="#gallery">Galeri</a></li>
+        </ul>
+    </nav>
 
-    <div class="cards-grid">
-        <div class="card">
-            <div class="card-title">🚶 Canlı Hareket Analizi</div>
-            <div class="card-desc">Yürüme, koşma, zıplama, oturma ve merdiven çıkma gibi hareketlerini şak diye ayırt eder.</div>
+    <header id="home">
+        <h1>Hareketini Keşfet usta!</h1>
+        <p>Gelişmiş AI algoritmalarımızla yürüme, koşma ve zıplama aktivitelerini anlık olarak analiz et. Verini topla, sınırlarını zorla.</p>
+        <a href="#tracking" class="btn-main">Analizi Başlat</a>
+    </header>
+
+    <section id="tracking">
+        <h2 class="section-title">Canlı Hareket Analizi</h2>
+        <div class="grid-container">
+            <div class="aktivite-kart" id="kart-yurume">
+                <i class="fas fa-walking"></i>
+                <h3>Yürüme</h3>
+                <div class="time-badge" id="t-yurume">0s</div>
+            </div>
+            <div class="aktivite-kart" id="kart-kosma">
+                <i class="fas fa-running"></i>
+                <h3>Koşma</h3>
+                <div class="time-badge" id="t-kosma">0s</div>
+            </div>
+            <div class="aktivite-kart" id="kart-ziplama">
+                <i class="fas fa-arrow-up"></i>
+                <h3>Zıplama</h3>
+                <div class="time-badge" id="t-ziplama">0s</div>
+            </div>
+            <div class="aktivite-kart" id="kart-merdiven">
+                <i class="fas fa-stairs"></i>
+                <h3>Merdiven</h3>
+                <div class="time-badge" id="t-merdiven">0s</div>
+            </div>
+            <div class="aktivite-kart" id="kart-oturma">
+                <i class="fas fa-chair"></i>
+                <h3>Oturma</h3>
+                <div class="time-badge" id="t-oturma">0s</div>
+            </div>
         </div>
-        <div class="card">
-            <div class="card-title">⏰ Hareketsizlik Uyarısı</div>
-            <div class="card-desc">10 dakikadan fazla oturduğunda sana bildirim verir ve harekete geçirir.</div>
+    </section>
+
+    <section class="upload-section" id="gallery">
+        <h2>Uygulama İçi Kayıtlar</h2>
+        <p>Hareket verilerini veya analiz sonuçlarını buraya yükle.</p>
+        <div class="upload-box" onclick="document.getElementById('fileInput').click()">
+            <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: #475569;"></i>
+            <p style="margin-top: 1rem;">Fotoğrafı buraya sürükle veya tıkla usta</p>
+            <input type="file" id="fileInput" hidden accept="image/*" onchange="previewImage(event)">
+            <img id="preview" alt="Önizleme">
         </div>
-    </div>
+    </section>
 
-    <div>
-        <a href="https://drive.google.com/YOUR-DRIVE-LINK-HERE" target="_blank" class="btn btn-primary">
-            📲 APK Olarak İndir (Google Drive)
-        </a>
+    <footer>
+        <div class="social-links">
+            <a href="#"><i class="fab fa-github"></i></a>
+            <a href="#"><i class="fab fa-instagram"></i></a>
+            <a href="#"><i class="fab fa-linkedin"></i></a>
+        </div>
+        <p>&copy; 2026 İvmeÖlçer. Geliştirici: <b>Ahmet Yasin Bal</b></p>
+        <p style="font-size: 0.8rem; color: #475569; margin-top: 10px;">Sokaktan gelen teknoloji, üstadın işi.</p>
+    </footer>
 
-        <a href="app.html" class="btn btn-secondary">
-            🌐 Tarayıcıdan Başlat (Web Sürümü)
-        </a>
-    </div>
+    <script>
+        function previewImage(event) {
+            const reader = new FileReader();
+            reader.onload = function(){
+                const output = document.getElementById('preview');
+                output.src = reader.result;
+                output.style.display = "block";
+            };
+            reader.readAsDataURL(event.target.files[0]);
+        }
 
+        // Önceki kodundaki tahminEt fonksiyonundan gelen veriyi 
+        // kart-yurume gibi ID'leri kullanarak "aktif" class'ı ekleyerek bağlayabilirsin kral.
+    </script>
 </body>
 </html>
