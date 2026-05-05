@@ -6,99 +6,431 @@
     <title>Hareket Takibi</title>
     <script src="model.js?v=999"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-        body { background: #121212; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-        .container { background: #1e1e1e; padding: 30px; border-radius: 15px; width: 100%; max-width: 400px; text-align: center; }
-        h1 { color: #00ff88; margin-bottom: 20px; }
-        .btn { background: #00ff88; color: #121212; border: none; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 25px; cursor: pointer; width: 100%; }
-        #analiz-ekrani { display: none; flex-direction: column; gap: 20px; }
-        .tahmin-box { font-size: 32px; font-weight: bold; color: #00ff88; margin: 20px 0; }
-        .durum-box { background: #292929; padding: 10px; border-radius: 10px; font-size: 14px; color: #aaa; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #09090b;
+            --surface: #18181b;
+            --surface2: #27272a;
+            --border: #3f3f46;
+            --accent: #22c55e;
+            --accent2: #3b82f6;
+            --warn: #f59e0b;
+            --danger: #ef4444;
+            --text: #f4f4f5;
+            --muted: #a1a1aa;
+            --dim: #52525b;
+        }
+        body {
+            font-family: -apple-system, 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container { width: 100%; max-width: 420px; }
+
+        /* ── BAŞLANGIÇ EKRANI ── */
+        #tanitim-ekrani { text-align: center; }
+        .logo-ring {
+            width: 72px; height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #22c55e22, #3b82f622);
+            border: 1.5px solid #22c55e55;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 32px;
+            margin: 0 auto 20px;
+        }
+        .screen-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px; }
+        .screen-sub { font-size: 14px; color: var(--muted); line-height: 1.5; margin-bottom: 32px; }
+        .btn-start {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 16px 32px;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 50px;
+            cursor: pointer;
+            width: 100%;
+            letter-spacing: 0.3px;
+            transition: opacity 0.15s;
+        }
+        .btn-start:active { opacity: 0.8; }
+
+        /* ── ANALİZ EKRANI ── */
+        #analiz-ekrani { display: none; flex-direction: column; gap: 14px; }
+
+        /* Durum satırı */
+        .status-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 10px 16px;
+        }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--dim); margin-right: 8px;
+            transition: background 0.3s;
+        }
+        .status-dot.active { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+        .status-text { font-size: 13px; color: var(--muted); flex: 1; }
+
+        /* Kontrol butonları */
+        .controls { display: flex; gap: 8px; }
+        .btn-ctrl {
+            flex: 1; border: 1px solid var(--border);
+            background: var(--surface); color: var(--text);
+            padding: 10px 0; font-size: 13px; font-weight: 600;
+            border-radius: 10px; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .btn-ctrl .icon { font-size: 18px; }
+        .btn-ctrl:hover { background: var(--surface2); }
+        .btn-ctrl:active { transform: scale(0.97); }
+        .btn-ctrl.danger { border-color: #ef444455; color: var(--danger); }
+        .btn-ctrl.danger:hover { background: #ef444411; }
+        .btn-ctrl.primary { border-color: #22c55e55; color: var(--accent); }
+        .btn-ctrl.primary:hover { background: #22c55e11; }
+
+        /* Tahmin kartı */
+        .tahmin-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px 20px;
+            text-align: center;
+        }
+        .tahmin-label { font-size: 12px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+        .tahmin-value {
+            font-size: 36px; font-weight: 800;
+            color: var(--accent);
+            transition: all 0.2s;
+            letter-spacing: -0.5px;
+        }
+        .tahmin-value.bekleniyor { color: var(--dim); font-size: 20px; font-weight: 500; }
+        .tahmin-emoji { font-size: 28px; margin-bottom: 6px; }
+
+        /* Uyarı bandı */
+        #uyari-bandi {
+            display: none;
+            background: #f59e0b15;
+            border: 1px solid #f59e0b55;
+            color: var(--warn);
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        /* Aktivite grid */
+        .aktivite-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        .aktivite-kart {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 8px;
+            text-align: center;
+            transition: border-color 0.3s, background 0.3s;
+        }
+        .aktivite-kart.aktif {
+            border-color: var(--accent);
+            background: #22c55e0d;
+        }
+        .aktivite-kart .ak-icon { font-size: 20px; margin-bottom: 4px; }
+        .aktivite-kart .ak-isim { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+        .aktivite-kart .ak-sure { font-size: 15px; font-weight: 700; color: var(--text); }
+
+        /* Ham veri */
+        .ham-veri {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 12px;
+            color: var(--dim);
+            font-family: monospace;
+            display: flex; gap: 12px; justify-content: space-around;
+        }
+        .ham-veri span { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .ham-veri .val { font-size: 14px; color: var(--muted); }
     </style>
 </head>
 <body>
-
 <div class="container">
+
+    <!-- BAŞLANGIÇ -->
     <div id="tanitim-ekrani">
-        <h1>Hareket Takibi</h1>
-        <button class="btn" onclick="ekranDegistirVeIzinAl()">SİSTEMİ BAŞLAT</button>
+        <div class="logo-ring">🏃</div>
+        <div class="screen-title">Hareket Takibi</div>
+        <p class="screen-sub">Telefon sensörlerin üzerinden hareketlerini gerçek zamanlı analiz eder.</p>
+        <button class="btn-start" onclick="ekranDegistirVeIzinAl()">Sistemi Başlat</button>
     </div>
 
+    <!-- ANALİZ -->
     <div id="analiz-ekrani">
-        <h1>Canlı Analiz</h1>
-        <div id="durum" class="durum-box">Başlatılıyor...</div>
-        <div class="tahmin-box" id="tahmin">BEKLENİYOR</div>
-        <div style="text-align: left; background: #222; padding: 15px; border-radius: 10px;">
-            <p>Oturma: <span id="time-oturma">0 sn</span></p>
-            <p>Yürüme: <span id="time-yurume">0 sn</span></p>
-            <p>Koşma: <span id="time-kosma">0 sn</span></p>
+
+        <!-- Durum -->
+        <div class="status-bar">
+            <div class="status-dot" id="status-dot"></div>
+            <span class="status-text" id="durum">Başlatılıyor...</span>
         </div>
+
+        <!-- Kontroller -->
+        <div class="controls">
+            <button class="btn-ctrl primary" id="btn-yeniden" onclick="yenidenBaslat()" style="display:none;">
+                <span class="icon">🔄</span>Yeniden
+            </button>
+            <button class="btn-ctrl danger" id="btn-durdur" onclick="durdur()">
+                <span class="icon">⏹</span>Durdur
+            </button>
+            <button class="btn-ctrl primary" id="btn-devam" onclick="devamEt()" style="display:none;">
+                <span class="icon">▶</span>Devam
+            </button>
+        </div>
+
+        <!-- Uyarı -->
+        <div id="uyari-bandi">⚠️ 10 dakikadan fazla oturuyorsun! Kalk ve hareket et.</div>
+
+        <!-- Tahmin -->
+        <div class="tahmin-card">
+            <div class="tahmin-emoji" id="tahmin-emoji">⏳</div>
+            <div class="tahmin-label">Şu anki hareket</div>
+            <div class="tahmin-value bekleniyor" id="tahmin">BEKLENİYOR</div>
+        </div>
+
+        <!-- Aktiviteler -->
+        <div class="aktivite-grid">
+            <div class="aktivite-kart" id="kart-oturma">
+                <div class="ak-icon">🪑</div>
+                <div class="ak-isim">Oturma</div>
+                <div class="ak-sure" id="t-oturma">0s</div>
+            </div>
+            <div class="aktivite-kart" id="kart-yurume">
+                <div class="ak-icon">🚶</div>
+                <div class="ak-isim">Yürüme</div>
+                <div class="ak-sure" id="t-yurume">0s</div>
+            </div>
+            <div class="aktivite-kart" id="kart-kosma">
+                <div class="ak-icon">🏃</div>
+                <div class="ak-isim">Koşma</div>
+                <div class="ak-sure" id="t-kosma">0s</div>
+            </div>
+            <div class="aktivite-kart" id="kart-ziplama">
+                <div class="ak-icon">⬆️</div>
+                <div class="ak-isim">Zıplama</div>
+                <div class="ak-sure" id="t-ziplama">0s</div>
+            </div>
+            <div class="aktivite-kart" id="kart-merdiven">
+                <div class="ak-icon">🪜</div>
+                <div class="ak-isim">Merdiven</div>
+                <div class="ak-sure" id="t-merdiven">0s</div>
+            </div>
+            <div class="aktivite-kart" id="kart-diger">
+                <div class="ak-icon">❓</div>
+                <div class="ak-isim">Diğer</div>
+                <div class="ak-sure" id="t-diger">0s</div>
+            </div>
+        </div>
+
+        <!-- Ham veri -->
+        <div class="ham-veri">
+            <span>X<div class="val" id="ham-x">–</div></span>
+            <span>Y<div class="val" id="ham-y">–</div></span>
+            <span>Z<div class="val" id="ham-z">–</div></span>
+        </div>
+
     </div>
 </div>
 
 <script>
-let sensorBuffer = [];
-const windowSize = 50; 
-const sınıflar = ["kosma", "oturma", "yurume"]; 
-let sureler = { "oturma": 0, "yurume": 0, "kosma": 0 };
+/*
+  ──────────────────────────────────────────────────────
+  ÖNEMLİ: sınıflar dizisini model.classes_ sıralamasıyla
+  birebir eşleştir! Terminalde gördüğün sıra neyse o.
+  Örnek çıktı: ['kosma' 'merdiven' 'oturma' 'yurume' 'ziplama']
+  ──────────────────────────────────────────────────────
+*/
+const SINIFLAR = ["kosma", "merdiven", "oturma", "yurume", "ziplama"];
 
-function logYaz(mesaj) {
-    const lb = document.getElementById("durum");
-    if (lb) lb.innerText = mesaj;
+const EMOJİLER = {
+    kosma: "🏃", merdiven: "🪜", oturma: "🪑",
+    yurume: "🚶", ziplama: "⬆️", diger: "❓"
+};
+
+const WINDOW_SIZE = 50;
+
+let buffer = [];
+let aktif = false;
+let listener = null;
+let sureler = { kosma:0, merdiven:0, oturma:0, yurume:0, ziplama:0, diger:0 };
+let mevcutTahmin = null;
+let oturmaSayac = 0;
+const UYARI_LIMIT = 600; // 600 pencere ≈ ~10 dakika
+
+function log(mesaj) {
+    document.getElementById("durum").textContent = mesaj;
 }
 
 function ekranDegistirVeIzinAl() {
     document.getElementById("tanitim-ekrani").style.display = "none";
     document.getElementById("analiz-ekrani").style.display = "flex";
 
-    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+    if (typeof DeviceMotionEvent !== "undefined" &&
+        typeof DeviceMotionEvent.requestPermission === "function") {
         DeviceMotionEvent.requestPermission()
-            .then(state => {
-                if (state === 'granted') baslat();
-                else logYaz("İzin verilmedi!");
-            })
-            .catch(e => logYaz("Hata: " + e));
+            .then(s => { if (s === "granted") baslat(); else log("İzin verilmedi!"); })
+            .catch(e => log("Hata: " + e));
     } else {
         baslat();
     }
 }
 
 function baslat() {
-    logYaz("Sensörler aktif...");
-    window.addEventListener('devicemotion', (event) => {
-        let acc = event.accelerationIncludingGravity;
-        if (acc && acc.x !== null) {
-            sensorBuffer.push([acc.x, acc.y, acc.z]);
-            if (sensorBuffer.length >= windowSize) {
-                tahminEt(sensorBuffer);
-                sensorBuffer = [];
+    if (typeof score === "undefined") {
+        log("model.js yüklenemedi!");
+        return;
+    }
+    aktif = true;
+    buffer = [];
+    document.getElementById("status-dot").classList.add("active");
+    log("Sensörler aktif...");
+    document.getElementById("btn-durdur").style.display = "flex";
+    document.getElementById("btn-devam").style.display = "none";
+
+    listener = (e) => {
+        if (!aktif) return;
+        const a = e.accelerationIncludingGravity;
+        if (a && a.x !== null) {
+            buffer.push([a.x, a.y, a.z]);
+            document.getElementById("ham-x").textContent = a.x.toFixed(2);
+            document.getElementById("ham-y").textContent = a.y.toFixed(2);
+            document.getElementById("ham-z").textContent = a.z.toFixed(2);
+            if (buffer.length >= WINDOW_SIZE) {
+                tahminEt([...buffer]);
+                buffer = [];
             }
         }
-    }, true);
+    };
+    window.addEventListener("devicemotion", listener, true);
 }
 
 function tahminEt(data) {
     try {
-        let sumX = 0, sumY = 0, sumZ = 0;
-        for (let i = 0; i < data.length; i++) {
-            sumX += data[i][0]; sumY += data[i][1]; sumZ += data[i][2];
-        }
-        
-        if (typeof score === 'undefined') {
-            logYaz("Model yuklenemedi!");
-            return;
+        let sX = 0, sY = 0, sZ = 0;
+        for (const d of data) { sX += d[0]; sY += d[1]; sZ += d[2]; }
+        const n = data.length;
+        const input = [sX/n, sY/n, sZ/n];
+
+        /*
+          ── BUG FİX ──────────────────────────────────────────────
+          m2cgen'in score() fonksiyonu her sınıf için birer skor
+          içeren bir DİZİ döndürür: [s0, s1, s2, ...]
+          Önceki kod bu diziyi direkt index olarak kullanıyordu
+          → hep fallback "oturma" çıkıyordu.
+          Çözüm: dizideki en büyük değerin indeksini al (argmax).
+          ────────────────────────────────────────────────────────
+        */
+        const skorlar = score(input);
+        let maxIdx = 0;
+        for (let i = 1; i < skorlar.length; i++) {
+            if (skorlar[i] > skorlar[maxIdx]) maxIdx = i;
         }
 
-        let input = [sumX/data.length, sumY/data.length, sumZ/data.length];
-        let idx = score(input);
-        let tahmin = sınıflar[idx] || "oturma";
+        const tahmin = SINIFLAR[maxIdx] || "diger";
+        guncelleTahmin(tahmin);
+        sureler[tahmin] = (sureler[tahmin] || 0) + 1;
+        guncelleSureler();
+        oturmaUyariKontrol(tahmin);
 
-        document.getElementById("tahmin").innerText = tahmin.toUpperCase();
-        sureler[tahmin]++;
-        document.getElementById("time-" + tahmin).innerText = sureler[tahmin] + " sn";
     } catch (e) {
-        logYaz("Tahmin Hatası!");
+        log("Tahmin hatası: " + e.message);
     }
+}
+
+function guncelleTahmin(tahmin) {
+    const el = document.getElementById("tahmin");
+    const emoji = document.getElementById("tahmin-emoji");
+
+    el.classList.remove("bekleniyor");
+    el.textContent = tahmin.toUpperCase().replace("ZIPLAMA","ZIPLA").replace("MERDIVEN","MERDİVEN").replace("YURUME","YÜRÜME").replace("KOSMA","KOŞMA").replace("OTURMA","OTURMA");
+
+    const isimMap = { kosma:"KOŞMA", merdiven:"MERDİVEN", oturma:"OTURMA", yurume:"YÜRÜME", ziplama:"ZIPLA", diger:"DİĞER" };
+    el.textContent = isimMap[tahmin] || tahmin.toUpperCase();
+    emoji.textContent = EMOJİLER[tahmin] || "❓";
+
+    // Aktif kartı vurgula
+    if (mevcutTahmin) {
+        const eski = document.getElementById("kart-" + mevcutTahmin);
+        if (eski) eski.classList.remove("aktif");
+    }
+    const yeni = document.getElementById("kart-" + tahmin);
+    if (yeni) yeni.classList.add("aktif");
+    mevcutTahmin = tahmin;
+}
+
+function guncelleSureler() {
+    const fmt = s => s < 60 ? s+"s" : Math.floor(s/60)+"dk "+s%60+"s";
+    for (const k of Object.keys(sureler)) {
+        const el = document.getElementById("t-" + k);
+        if (el) el.textContent = fmt(sureler[k]);
+    }
+}
+
+function oturmaUyariKontrol(tahmin) {
+    if (tahmin === "oturma") {
+        oturmaSayac++;
+        if (oturmaSayac >= UYARI_LIMIT) {
+            document.getElementById("uyari-bandi").style.display = "block";
+        }
+    } else {
+        oturmaSayac = 0;
+        document.getElementById("uyari-bandi").style.display = "none";
+    }
+}
+
+function durdur() {
+    aktif = false;
+    document.getElementById("status-dot").classList.remove("active");
+    log("Durduruldu.");
+    document.getElementById("btn-durdur").style.display = "none";
+    document.getElementById("btn-devam").style.display = "flex";
+    document.getElementById("btn-yeniden").style.display = "flex";
+}
+
+function devamEt() {
+    aktif = true;
+    document.getElementById("status-dot").classList.add("active");
+    log("Sensörler aktif...");
+    document.getElementById("btn-durdur").style.display = "flex";
+    document.getElementById("btn-devam").style.display = "none";
+}
+
+function yenidenBaslat() {
+    if (listener) window.removeEventListener("devicemotion", listener, true);
+    sureler = { kosma:0, merdiven:0, oturma:0, yurume:0, ziplama:0, diger:0 };
+    oturmaSayac = 0;
+    mevcutTahmin = null;
+    buffer = [];
+    document.getElementById("tahmin").textContent = "BEKLENİYOR";
+    document.getElementById("tahmin").classList.add("bekleniyor");
+    document.getElementById("tahmin-emoji").textContent = "⏳";
+    document.getElementById("uyari-bandi").style.display = "none";
+    guncelleSureler();
+    document.querySelectorAll(".aktivite-kart").forEach(k => k.classList.remove("aktif"));
+    document.getElementById("btn-yeniden").style.display = "none";
+    document.getElementById("ham-x").textContent = "–";
+    document.getElementById("ham-y").textContent = "–";
+    document.getElementById("ham-z").textContent = "–";
+    baslat();
 }
 </script>
 </body>
