@@ -6,96 +6,14 @@
     <title>Hareket Takibi</title>
     <script src="model.js?v=999"></script>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        body {
-            background: #121212;
-            color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            background: #1e1e1e;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-        }
-        h1 {
-            font-size: 24px;
-            margin-bottom: 20px;
-            color: #00ff88;
-        }
-        .btn {
-            background: #00ff88;
-            color: #121212;
-            border: none;
-            padding: 15px 30px;
-            font-size: 18px;
-            font-weight: bold;
-            border-radius: 25px;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,255,136,0.3);
-        }
-        .btn:hover {
-            background: #00dd77;
-            transform: translateY(-2px);
-        }
-        #analiz-ekrani {
-            display: none;
-            flex-direction: column;
-            gap: 20px;
-        }
-        .durum-box {
-            background: #292929;
-            padding: 15px;
-            border-radius: 10px;
-            font-size: 14px;
-            color: #aaa;
-            min-height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .tahmin-box {
-            font-size: 32px;
-            font-weight: bold;
-            color: #00ff88;
-            margin: 20px 0;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-        .sureler-listesi {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            text-align: left;
-            background: #222;
-            padding: 15px;
-            border-radius: 10px;
-        }
-        .sure-satir {
-            display: flex;
-            justify-content: space-between;
-            font-size: 16px;
-            border-bottom: 1px solid #333;
-            padding-bottom: 5px;
-        }
-        .sure-satir:last-child {
-            border-bottom: none;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body { background: #121212; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+        .container { background: #1e1e1e; padding: 30px; border-radius: 15px; width: 100%; max-width: 400px; text-align: center; }
+        h1 { color: #00ff88; margin-bottom: 20px; }
+        .btn { background: #00ff88; color: #121212; border: none; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 25px; cursor: pointer; width: 100%; }
+        #analiz-ekrani { display: none; flex-direction: column; gap: 20px; }
+        .tahmin-box { font-size: 32px; font-weight: bold; color: #00ff88; margin: 20px 0; }
+        .durum-box { background: #292929; padding: 10px; border-radius: 10px; font-size: 14px; color: #aaa; }
     </style>
 </head>
 <body>
@@ -103,158 +21,85 @@
 <div class="container">
     <div id="tanitim-ekrani">
         <h1>Hareket Takibi</h1>
-        <p style="color: #aaa; margin-bottom: 25px;">Sistemi başlatmak ve ivmeölçer verilerini okumak için lütfen izin verin kral.</p>
         <button class="btn" onclick="ekranDegistirVeIzinAl()">SİSTEMİ BAŞLAT</button>
     </div>
 
     <div id="analiz-ekrani">
         <h1>Canlı Analiz</h1>
-        <div id="durum" class="durum-box">Sensör bekleniyor...</div>
-        
+        <div id="durum" class="durum-box">Başlatılıyor...</div>
         <div class="tahmin-box" id="tahmin">BEKLENİYOR</div>
-
-        <div class="sureler-listesi">
-            <div class="sure-satir">
-                <span>Oturma:</span>
-                <span id="time-oturma">0 sn</span>
-            </div>
-            <div class="sure-satir">
-                <span>Yürüme:</span>
-                <span id="time-yurume">0 sn</span>
-            </div>
-            <div class="sure-satir">
-                <span>Koşma:</span>
-                <span id="time-kosma">0 sn</span>
-            </div>
+        <div style="text-align: left; background: #222; padding: 15px; border-radius: 10px;">
+            <p>Oturma: <span id="time-oturma">0 sn</span></p>
+            <p>Yürüme: <span id="time-yurume">0 sn</span></p>
+            <p>Koşma: <span id="time-kosma">0 sn</span></p>
         </div>
     </div>
 </div>
 
 <script>
-let ax = 0, ay = 0, az = 0;
 let sensorBuffer = [];
 const windowSize = 50; 
-
-// Yeni modeldeki tüm olası sınıfları ve sayısal çıktıları güvenceye alıyoruz kral
 const sınıflar = ["kosma", "oturma", "yurume"]; 
 let sureler = { "oturma": 0, "yurume": 0, "kosma": 0 };
 
 function logYaz(mesaj) {
-    const logBox = document.getElementById("durum");
-    if (logBox) logBox.innerText = mesaj;
-    console.log(mesaj);
+    const lb = document.getElementById("durum");
+    if (lb) lb.innerText = mesaj;
 }
 
 function ekranDegistirVeIzinAl() {
-    logYaz("İzin süreci başlatıldı...");
+    document.getElementById("tanitim-ekrani").style.display = "none";
+    document.getElementById("analiz-ekrani").style.display = "flex";
+
     if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
         DeviceMotionEvent.requestPermission()
             .then(state => {
-                if (state === 'granted') {
-                    document.getElementById("tanitim-ekrani").style.display = "none";
-                    document.getElementById("analiz-ekrani").style.display = "flex";
-                    baslat();
-                } else {
-                    logYaz("HATA: İzin reddedildi.");
-                }
+                if (state === 'granted') baslat();
+                else logYaz("İzin verilmedi!");
             })
-            .catch(err => logYaz("HATA: " + err));
+            .catch(e => logYaz("Hata: " + e));
     } else {
-        document.getElementById("tanitim-ekrani").style.display = "none";
-        document.getElementById("analiz-ekrani").style.display = "flex";
         baslat();
     }
 }
 
 function baslat() {
-    logYaz("Sensör dinleniyor...");
-    
-    if (typeof score === 'undefined') {
-        logYaz("HATA: model.js dosyası henüz yüklenemedi!");
-        return;
-    }
-
+    logYaz("Sensörler aktif...");
     window.addEventListener('devicemotion', (event) => {
         let acc = event.accelerationIncludingGravity;
         if (acc && acc.x !== null) {
-            ax = acc.x;
-            ay = acc.y;
-            az = acc.z;
-            
-            sensorBuffer.push([ax, ay, az]);
-            
+            sensorBuffer.push([acc.x, acc.y, acc.z]);
             if (sensorBuffer.length >= windowSize) {
                 tahminEt(sensorBuffer);
-                sensorBuffer = []; 
+                sensorBuffer = [];
             }
-        } else {
-            logYaz("Sensöre bağlandı ama veri gelmiyor...");
         }
     }, true);
 }
 
 function tahminEt(data) {
     try {
-        // 1. Verilerin mutlak farklarını (hareketliliği) hesapla usta
-        let totalMove = 0;
-        for (let i = 1; i < data.length; i++) {
-            // Bir önceki veriyle şimdiki veri arasındaki farka bakıyoruz
-            totalMove += Math.abs(data[i][0] - data[i-1][0]);
-            totalMove += Math.abs(data[i][1] - data[i-1][1]);
-            totalMove += Math.abs(data[i][2] - data[i-1][2]);
-        }
-
-        // 2. Eğer toplam hareket çok azsa, modeli bile yormadan "OTURMA" diyelim
-        if (totalMove < 2.0) { 
-            güncelleEkrani("oturma");
-            return;
-        }
-
-        // 3. Eğer hareket varsa modeli çalıştır
         let sumX = 0, sumY = 0, sumZ = 0;
         for (let i = 0; i < data.length; i++) {
             sumX += data[i][0]; sumY += data[i][1]; sumZ += data[i][2];
         }
         
-        let inputFeatures = [sumX/data.length, sumY/data.length, sumZ/data.length];
-        let sonucIndex = score(inputFeatures);
-        let tahminEdilen = sınıflar[sonucIndex] || "yurume"; 
-
-        güncelleEkrani(tahminEdilen);
-
-    } catch (e) {
-        logYaz("HATA: " + e.message);
-    }
-}
-
-function güncelleEkrani(tahmin) {
-    document.getElementById("tahmin").innerText = tahmin.toUpperCase();
-    sureler[tahmin]++;
-    const el = document.getElementById(`time-${tahmin}`);
-    if(el) el.innerText = sureler[tahmin] + " sn";
-    logYaz("Analiz akıyor...");
-}
-
-        // Hata vermemesi için güvenli kontrol kral
-        if (tahminEdilen && typeof tahminEdilen === "string") {
-            document.getElementById("tahmin").innerText = tahminEdilen.toUpperCase();
-            logYaz("Analiz aktif!");
-
-            // Süreyi güncelle
-            if (sureler[tahminEdilen] !== undefined) {
-                sureler[tahminEdilen]++;
-                const timeEl = document.getElementById(`time-${tahminEdilen}`);
-                if (timeEl) timeEl.innerText = sureler[tahminEdilen] + " sn";
-            }
-        } else {
-            logYaz("Beklenmeyen tahmin sonucu: " + sonuc);
+        if (typeof score === 'undefined') {
+            logYaz("Model yuklenemedi!");
+            return;
         }
 
+        let input = [sumX/data.length, sumY/data.length, sumZ/data.length];
+        let idx = score(input);
+        let tahmin = sınıflar[idx] || "oturma";
+
+        document.getElementById("tahmin").innerText = tahmin.toUpperCase();
+        sureler[tahmin]++;
+        document.getElementById("time-" + tahmin).innerText = sureler[tahmin] + " sn";
     } catch (e) {
-        logYaz("TAHMİN HATASI: " + e.message);
+        logYaz("Tahmin Hatası!");
     }
 }
 </script>
-
 </body>
 </html>
