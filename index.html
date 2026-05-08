@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>İvmeÖlçer | Hareketini Yakala</title>
+    <title>Canlı Hareket Takibi | Ne Yaptığını Kaydet</title>
     <!-- Fontlar ve İkonlar -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -98,18 +98,17 @@
 <body>
 
     <nav>
-        <div class="logo">İVMEÖLÇER</div>
+        <div class="logo">Canlı Hareket Takibi</div>
         <ul class="nav-links">
             <li><a href="#home">Ana Sayfa</a></li>
             <li><a href="#about">Nasıl Çalışır?</a></li>
             <li><a href="#tracking">Canlı Takip</a></li>
-            <li><a href="#gallery">Galeri</a></li>
         </ul>
     </nav>
 
     <header id="home">
-        <h1>Hareketini Keşfet usta!</h1>
-        <p>Gelişmiş AI algoritmalarımızla yürüme, koşma ve zıplama aktivitelerini anlık olarak analiz et. Verini topla, sınırlarını zorla.</p>
+        <h1>Ne Yaptığını Kaybet!</h1>
+        <p>Gelişmiş AI algoritmalarımızla yürüme, koşma, merdiven çıkma, oturma ve zıplama aktivitelerini anlık olarak analiz et. kaydet, gün içinde neler yaptığını gör.</p>
         <a href="#tracking" class="btn-main">Analizi Başlat</a>
     </header>
 
@@ -144,16 +143,6 @@
         </div>
     </section>
 
-    <section class="upload-section" id="gallery">
-        <h2>Uygulama İçi Kayıtlar</h2>
-        <p>Hareket verilerini veya analiz sonuçlarını buraya yükle.</p>
-        <div class="upload-box" onclick="document.getElementById('fileInput').click()">
-            <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: #475569;"></i>
-            <p style="margin-top: 1rem;">Fotoğrafı buraya sürükle veya tıkla usta</p>
-            <input type="file" id="fileInput" hidden accept="image/*" onchange="previewImage(event)">
-            <img id="preview" alt="Önizleme">
-        </div>
-    </section>
 
     <footer>
         <div class="social-links">
