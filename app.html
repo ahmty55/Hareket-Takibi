@@ -134,14 +134,30 @@
       letter-spacing:-1px; text-transform:uppercase; color:var(--green);
       transition: color .3s; line-height:1;
     }
-    .tc-value.idle { font-size:20px; font-weight:300; color:var(--dim); letter-spacing:4px; }
+    .tc-value.idle    { font-size:20px; font-weight:300; color:var(--dim); letter-spacing:4px; }
+    .tc-value.belirsiz { font-size:28px; font-weight:300; color:var(--warn); letter-spacing:2px; }
 
-    /* DEBUG SATIRI */
-    .debug-bar {
-      font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
-      color: var(--dim); text-align: center; padding: 6px;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 6px;
+    /* Confidence bar */
+    .conf-bar-wrap {
+      margin-top: 10px;
+      background: var(--lift);
+      border-radius: 3px;
+      height: 4px;
+      overflow: hidden;
+    }
+    .conf-bar {
+      height: 100%;
+      background: var(--green);
+      border-radius: 3px;
+      transition: width .4s, background .3s;
+      width: 0%;
+    }
+    .conf-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      margin-top: 6px;
     }
 
     /* AKTİVİTE GRID — 5 kart (2+2+1) */
@@ -177,6 +193,17 @@
     .sensor-val  { font-family:var(--mono); font-size:15px; color:var(--text); }
     .sensor-val.green { color:var(--green); }
 
+    /* DEBUG ROW */
+    .debug-row {
+      display: flex; gap: 8px;
+    }
+    .debug-box {
+      flex:1; background:var(--surface); border:1px solid var(--border);
+      border-radius:6px; padding:10px; text-align:center;
+    }
+    .debug-axis { font-family:var(--mono); font-size:9px; letter-spacing:1px; color:var(--muted); margin-bottom:4px; }
+    .debug-val  { font-family:var(--mono); font-size:13px; color:var(--blue); }
+
     /* OVERLAY */
     #start-overlay {
       position:fixed; inset:0; z-index:200; background:var(--bg);
@@ -198,46 +225,45 @@
     .so-title em { font-style:normal; color:var(--green); }
     .so-sub { font-family:var(--head); font-weight:300; font-size:16px; color:var(--muted); max-width:340px; line-height:1.5; margin-bottom:48px; position:relative; }
     .so-btn {
-      position:relative; padding:18px 48px; background:var(--green); color:#000;
-      font-family:var(--head); font-weight:800; font-size:18px; letter-spacing:1px;
-      text-transform:uppercase; border:none; border-radius:4px; cursor:pointer;
-      box-shadow:0 0 40px rgba(57,224,110,.3); transition:transform .15s, box-shadow .2s;
+      position:relative;
+      display:inline-flex; align-items:center; gap:10px;
+      padding:16px 36px; background:var(--green); color:#000;
+      font-family:var(--head); font-weight:800; font-size:18px;
+      letter-spacing:1px; text-transform:uppercase;
+      border:none; border-radius:4px; cursor:pointer;
+      box-shadow:0 0 30px rgba(57,224,110,.3);
+      transition:transform .15s, box-shadow .2s;
     }
-    .so-btn:hover { transform:translateY(-2px); box-shadow:0 0 60px rgba(57,224,110,.45); }
-    .so-back { position:relative; margin-top:20px; font-family:var(--mono); font-size:11px; letter-spacing:1px; color:var(--muted); text-decoration:none; }
-    .so-back:hover { color:var(--text); }
+    .so-btn:hover { transform:translateY(-2px); box-shadow:0 0 50px rgba(57,224,110,.5); }
   </style>
 </head>
 <body>
 
   <!-- OVERLAY -->
   <div id="start-overlay">
-    <div class="so-logo">// İVMEÖLÇER — ANALİZ MODÜLÜ</div>
-    <div class="so-title">Canlı<br /><em>Analiz</em></div>
-    <p class="so-sub">Sensörler etkinleştirilecek. Başlatmak için aşağıdaki butona dokun.</p>
-    <button class="so-btn" onclick="izinAlVeBaslat()">Sistemi Başlat</button>
-    <a href="index.html" class="so-back">← Ana Sayfaya Dön</a>
+    <div class="so-logo">İvme<span style="color:var(--muted)">Ölçer</span></div>
+    <h1 class="so-title">Hareket<br /><em>Analizi</em></h1>
+    <p class="so-sub">Sensöre erişim için izin gerekli. Başlatmak için butona bas.</p>
+    <button class="so-btn" onclick="izinAlVeBaslat()">▶ Başlat</button>
   </div>
 
   <!-- TOPBAR -->
   <div class="topbar">
     <div class="topbar-logo">İvme<span>Ölçer</span></div>
-    <a href="index.html" class="topbar-back">← Geri</a>
+    <a href="index.html" class="topbar-back">← Ana Sayfa</a>
   </div>
 
-  <!-- İÇERİK -->
   <div class="main">
-
     <div class="status-row">
       <div class="status-dot" id="status-dot"></div>
-      <span class="status-text" id="durum">Başlatılıyor...</span>
+      <div class="status-text" id="durum">Başlatılıyor...</div>
     </div>
 
     <div class="controls">
-      <button class="btn-ctrl red"   id="btn-durdur"  onclick="durdur()"        style="display:none">
+      <button class="btn-ctrl red"   id="btn-durdur"  onclick="durdur()"      style="display:none">
         <span class="ic">⏹</span>Durdur
       </button>
-      <button class="btn-ctrl green" id="btn-devam"   onclick="devamEt()"       style="display:none">
+      <button class="btn-ctrl green" id="btn-devam"   onclick="devamEt()"     style="display:none">
         <span class="ic">▶</span>Devam
       </button>
       <button class="btn-ctrl green" id="btn-yeniden" onclick="yenidenBaslat()" style="display:none">
@@ -251,12 +277,13 @@
       <div class="tc-label">// şu anki hareket</div>
       <div class="tc-emoji" id="tc-emoji">⏳</div>
       <div class="tc-value idle" id="tc-value">BEKLENİYOR</div>
+      <div class="conf-bar-wrap">
+        <div class="conf-bar" id="conf-bar"></div>
+      </div>
+      <div class="conf-label" id="conf-label">GÜVEN: –</div>
     </div>
 
-    <!-- DEBUG SATIRI — sorun çözülünce kaldırabilirsin -->
-    <div class="debug-bar" id="debug-bar">debug: bekleniyor...</div>
-
-    <!-- 5 kart — diger YOK -->
+    <!-- 5 kart -->
     <div class="akt-grid">
       <div class="akt-card" id="kart-yurume">
         <div class="akt-icon">🚶</div>
@@ -274,43 +301,50 @@
         <div class="akt-icon">🪜</div>
         <div class="akt-info"><div class="akt-name">Merdiven</div><div class="akt-time" id="t-merdiven">0s</div></div>
       </div>
-      <!-- 5. kart tam genişlik -->
       <div class="akt-card" id="kart-oturma">
         <div class="akt-icon">🪑</div>
         <div class="akt-info"><div class="akt-name">Oturma</div><div class="akt-time" id="t-oturma">0s</div></div>
       </div>
     </div>
 
+    <!-- Ham ivme -->
     <div class="sensor-row">
       <div class="sensor-box"><div class="sensor-axis">X</div><div class="sensor-val" id="ham-x">–</div></div>
       <div class="sensor-box"><div class="sensor-axis">Y</div><div class="sensor-val" id="ham-y">–</div></div>
       <div class="sensor-box"><div class="sensor-axis">Z</div><div class="sensor-val green" id="ham-z">–</div></div>
-      <div class="sensor-box"><div class="sensor-axis">aT</div><div class="sensor-val green" id="ham-at">–</div></div>
+    </div>
+
+    <!-- Debug: magnitude + hareket eşiği -->
+    <div class="debug-row">
+      <div class="debug-box"><div class="debug-axis">MAGNİTÜD</div><div class="debug-val" id="dbg-mag">–</div></div>
+      <div class="debug-box"><div class="debug-axis">HAM DELTA</div><div class="debug-val" id="dbg-delta">–</div></div>
+      <div class="debug-box"><div class="debug-axis">DURUM</div><div class="debug-val" id="dbg-state">–</div></div>
     </div>
 
   </div>
 
 <script>
-// ════════════════════════════════════════════════════════════════
-//  model.js ANALİZİ SONUCU:
-//
-//  GİRİŞ (4 özellik):
-//    input[0] = ax   (ortalama X ivmesi)
-//    input[1] = ay   (ortalama Y ivmesi)
-//    input[2] = az   (ortalama Z ivmesi)
-//    input[3] = aT   (ortalama toplam büyüklük = sqrt(x²+y²+z²))
-//
-//  ÇIKIŞ (5 elemanlı dizi → 5 sınıf, sklearn ALFABETİK sıralar):
-//    [s_kosma, s_merdiven, s_oturma, s_yurume, s_ziplama]
-//
-//  ★ DÜZELTME 1: score([x,y,z]) → score([x,y,z,aT])
-//  ★ DÜZELTME 2: SINIFLAR 2→5 eleman
-//  ★ DÜZELTME 3: argmax ile en yüksek skoru bul
-//
-//  sa.py çalıştırınca terminaldeki son satırı buraya yapıştır:
-//    const SINIFLAR = ['kosma','merdiven','oturma','yurume','ziplama']
-// ════════════════════════════════════════════════════════════════
-const SINIFLAR = ["kosma", "merdiven", "oturma", "yurume", "ziplama"];
+// ══════════════════════════════════════════════════════════════════
+//  SINIFLAR: model.py → classes_ çıktısıyla BİREBİR eşleşmeli.
+//  model.js'deki score() fonksiyonu 5 elemanlı dizi döndürüyor:
+//  [yurume, kosma, ziplama, merdiven, oturma]  (eğitim sırasındaki sıra)
+// ══════════════════════════════════════════════════════════════════
+const SINIFLAR = ["yurume", "kosma", "ziplama", "merdiven", "oturma"];
+
+// ── Güven Skoru Eşiği (%65 altında "Belirsiz" göster) ─────────────
+const CONFIDENCE_THRESHOLD = 0.65;
+
+// ── Hareketsizlik Eşiği (m/s²) ────────────────────────────────────
+// Penceredeki ardışık örnekler arasındaki ortalama delta bu değerin
+// altındaysa model çalıştırılmaz, direkt "Oturma" döndürülür.
+const STILL_THRESHOLD = 0.25;
+
+// ── Smoothing: son kaç tahmini biriktirip oylama yapılacak ─────────
+const SMOOTH_WINDOW = 5;   // son 5 pencere tahmini
+
+// ── Pencere boyutu (sample sayısı) ────────────────────────────────
+const WINDOW_SIZE  = 50;
+const OTURMA_LIMIT = 600;
 
 const META = {
   yurume:   { emoji:"🚶", label:"YÜRÜME"   },
@@ -320,18 +354,197 @@ const META = {
   oturma:   { emoji:"🪑", label:"OTURMA"   },
 };
 
-const WINDOW_SIZE  = 50;
-const OTURMA_LIMIT = 600;   // pencere ≈ 10 dk
-
-let buffer = [], aktif = false, listener = null;
-let mevcutTahmin = null, oturmaSayac = 0;
-let sureler = { yurume:0, kosma:0, ziplama:0, merdiven:0, oturma:0 };
+let buffer        = [];
+let aktif         = false;
+let listener      = null;
+let mevcutTahmin  = null;
+let oturmaSayac   = 0;
+let sureler       = { yurume:0, kosma:0, ziplama:0, merdiven:0, oturma:0 };
+let tahminGecmisi = [];   // Moving-average için son N tahmin
 
 function log(m) { document.getElementById("durum").textContent = m; }
 function fmt(s) { return s < 60 ? s+"s" : Math.floor(s/60)+"dk "+(s%60)+"s"; }
-function dbg(m) { const el=document.getElementById("debug-bar"); if(el) el.textContent="debug: "+m; }
 
-// ── İzin + Başlat ──────────────────────────────────────────────
+// ── Hareketsizlik tespiti ──────────────────────────────────────────
+// Penceredeki ardışık örnekler arasındaki ortalama mutlak farkı döner.
+function hesaplaDelta(data) {
+  if (data.length < 2) return 999;
+  let toplamDelta = 0;
+  for (let i = 1; i < data.length; i++) {
+    toplamDelta += Math.abs(data[i][0] - data[i-1][0])
+                 + Math.abs(data[i][1] - data[i-1][1])
+                 + Math.abs(data[i][2] - data[i-1][2]);
+  }
+  return toplamDelta / (data.length - 1);
+}
+
+// ── Moving-average / çoğunluk oylama ──────────────────────────────
+function smoothedTahmin(yeniTahmin) {
+  tahminGecmisi.push(yeniTahmin);
+  if (tahminGecmisi.length > SMOOTH_WINDOW) tahminGecmisi.shift();
+
+  const sayac = {};
+  for (const t of tahminGecmisi) sayac[t] = (sayac[t] || 0) + 1;
+  let maxK = tahminGecmisi[0], maxV = 0;
+  for (const [k,v] of Object.entries(sayac)) { if (v > maxV) { maxV = v; maxK = k; } }
+  return maxK;
+}
+
+// ── Confidence bar güncelle ────────────────────────────────────────
+function updateConfBar(pct) {
+  const bar  = document.getElementById("conf-bar");
+  const lbl  = document.getElementById("conf-label");
+  const pct100 = Math.round(pct * 100);
+  bar.style.width = pct100 + "%";
+  bar.style.background = pct >= CONFIDENCE_THRESHOLD ? "var(--green)" : "var(--warn)";
+  lbl.textContent = "GÜVEN: %" + pct100;
+}
+
+// ── UI'ı güncelle ─────────────────────────────────────────────────
+function gosterTahmin(tahmin, confidence) {
+  // Önceki aktif kartı kaldır
+  if (mevcutTahmin) {
+    const eski = document.getElementById("kart-" + mevcutTahmin);
+    if (eski) eski.classList.remove("aktif");
+  }
+
+  if (tahmin === "belirsiz") {
+    document.getElementById("tc-value").className   = "tc-value belirsiz";
+    document.getElementById("tc-value").textContent = "BELİRSİZ";
+    document.getElementById("tc-emoji").textContent  = "🤔";
+    // Önceki kartı aktif bırakma
+    return;
+  }
+
+  const yeniKart = document.getElementById("kart-" + tahmin);
+  if (yeniKart) yeniKart.classList.add("aktif");
+
+  const m = META[tahmin] || {};
+  document.getElementById("tc-value").className   = "tc-value";
+  document.getElementById("tc-value").textContent = m.label || tahmin.toUpperCase();
+  document.getElementById("tc-emoji").textContent  = m.emoji || "❓";
+  mevcutTahmin = tahmin;
+
+  // Süre güncelle
+  sureler[tahmin] = (sureler[tahmin] || 0) + 1;
+  const tEl = document.getElementById("t-" + tahmin);
+  if (tEl) tEl.textContent = fmt(sureler[tahmin]);
+
+  // Oturma uyarısı
+  if (tahmin === "oturma") {
+    oturmaSayac++;
+    if (oturmaSayac >= OTURMA_LIMIT) document.getElementById("uyari").style.display = "block";
+  } else {
+    oturmaSayac = 0;
+    document.getElementById("uyari").style.display = "none";
+  }
+}
+
+// ── Ana tahmin fonksiyonu ──────────────────────────────────────────
+function tahminEt(data) {
+  try {
+    // 1) Veri istatistikleri
+    let sX=0, sY=0, sZ=0;
+    for (const d of data) { sX+=d[0]; sY+=d[1]; sZ+=d[2]; }
+    const n   = data.length;
+    const aX  = sX / n;
+    const aY  = sY / n;
+    const aZ  = sZ / n;
+
+    // 2) Magnitude (input[3]) — model bu 4. özelliği bekliyor
+    //    Her örneğin büyüklüğünü alıp ortalamasını al
+    let sMag = 0;
+    for (const d of data) {
+      sMag += Math.sqrt(d[0]*d[0] + d[1]*d[1] + d[2]*d[2]);
+    }
+    const aMag = sMag / n;
+
+    // 3) Hareketsizlik (statik eşik) kontrolü
+    const delta = hesaplaDelta(data);
+    document.getElementById("dbg-delta").textContent = delta.toFixed(3);
+    document.getElementById("dbg-mag").textContent   = aMag.toFixed(2);
+
+    if (delta < STILL_THRESHOLD) {
+      // Telefon neredeyse hareketsiz → model çalıştırma
+      document.getElementById("dbg-state").textContent = "SABİT";
+      updateConfBar(1.0);
+      const smoothed = smoothedTahmin("oturma");
+      gosterTahmin(smoothed, 1.0);
+      return;
+    }
+
+    document.getElementById("dbg-state").textContent = "AKTİF";
+
+    // 4) Modeli çalıştır — 4 özellik: [meanX, meanY, meanZ, meanMag]
+    const input   = [aX, aY, aZ, aMag];
+    const skorlar = score(input);
+
+    // 5) ArgMax + Confidence
+    let maxIdx = 0;
+    for (let i = 1; i < skorlar.length; i++)
+      if (skorlar[i] > skorlar[maxIdx]) maxIdx = i;
+
+    const confidence = skorlar[maxIdx];
+    updateConfBar(confidence);
+
+    // 6) Düşük güven skoru → "Belirsiz"
+    if (confidence < CONFIDENCE_THRESHOLD) {
+      gosterTahmin("belirsiz", confidence);
+      return;
+    }
+
+    // 7) Moving-average smoothing
+    const hammTahmin = SINIFLAR[maxIdx];
+    if (!hammTahmin) return;
+    const smoothed = smoothedTahmin(hammTahmin);
+
+    gosterTahmin(smoothed, confidence);
+
+  } catch(e) { log("Tahmin hatası: " + e.message); }
+}
+
+// ── Sensör başlatma ────────────────────────────────────────────────
+function baslat() {
+  if (typeof score === "undefined") { log("model.js yüklenemedi!"); return; }
+  aktif = true; buffer = [];
+  document.getElementById("status-dot").classList.add("active");
+  log("Sensörler aktif...");
+  document.getElementById("btn-durdur").style.display  = "flex";
+  document.getElementById("btn-devam").style.display   = "none";
+  document.getElementById("btn-yeniden").style.display = "none";
+
+  listener = (e) => {
+    if (!aktif) return;
+
+    // ── Veri Normalizasyonu ──────────────────────────────────────
+    // Öncelik 1: e.acceleration  → tarayıcı yerçekimini zaten çıkarmış (linear acc.)
+    // Öncelik 2: e.accelerationIncludingGravity → ham veri (yerçekimi dahil)
+    // Model ham veriyle eğitildiyse önceliği tersine çevir.
+    // Şu an: linear acceleration tercih edilir. Eğer null gelirse fallback yapılır.
+    let a = e.acceleration;
+    let kaynakLineer = true;
+    if (!a || a.x === null || a.x === undefined) {
+      a = e.accelerationIncludingGravity;
+      kaynakLineer = false;
+    }
+    if (!a || a.x === null) return;
+
+    // Ham veri göster
+    document.getElementById("ham-x").textContent = a.x.toFixed(2);
+    document.getElementById("ham-y").textContent = a.y.toFixed(2);
+    document.getElementById("ham-z").textContent = a.z.toFixed(2);
+
+    // Tampona ekle
+    buffer.push([a.x, a.y, a.z]);
+
+    if (buffer.length >= WINDOW_SIZE) {
+      tahminEt([...buffer]);
+      buffer = [];
+    }
+  };
+  window.addEventListener("devicemotion", listener, true);
+}
+
 function izinAlVeBaslat() {
   const ov = document.getElementById("start-overlay");
   ov.classList.add("hidden");
@@ -345,93 +558,6 @@ function izinAlVeBaslat() {
   } else { baslat(); }
 }
 
-// ── Baslat ─────────────────────────────────────────────────────
-function baslat() {
-  if (typeof score === "undefined") { log("model.js yüklenemedi!"); return; }
-  aktif = true; buffer = [];
-  document.getElementById("status-dot").classList.add("active");
-  log("Sensörler aktif...");
-  document.getElementById("btn-durdur").style.display  = "flex";
-  document.getElementById("btn-devam").style.display   = "none";
-  document.getElementById("btn-yeniden").style.display = "none";
-
-  listener = (e) => {
-    if (!aktif) return;
-    const a = e.accelerationIncludingGravity;
-    if (!a || a.x === null) return;
-    buffer.push([a.x, a.y, a.z]);
-    document.getElementById("ham-x").textContent = a.x.toFixed(2);
-    document.getElementById("ham-y").textContent = a.y.toFixed(2);
-    document.getElementById("ham-z").textContent = a.z.toFixed(2);
-    if (buffer.length >= WINDOW_SIZE) { tahminEt([...buffer]); buffer = []; }
-  };
-  window.addEventListener("devicemotion", listener, true);
-}
-
-// ── Tahmin ─────────────────────────────────────────────────────
-function tahminEt(data) {
-  try {
-    let sX=0, sY=0, sZ=0, sMag=0;
-    for (const d of data) {
-      sX   += d[0];
-      sY   += d[1];
-      sZ   += d[2];
-      sMag += Math.sqrt(d[0]*d[0] + d[1]*d[1] + d[2]*d[2]); // aT
-    }
-    const n   = data.length;
-    const axM = sX/n, ayM = sY/n, azM = sZ/n, atM = sMag/n;
-
-    // ─── DÜZELTME 1: 4. özelliği ekle (aT) ───────────────────────
-    // model.js'de input[3] kullanılıyor; eksik olunca ağaç bozuluyordu
-    const skorlar = score([axM, ayM, azM, atM]);
-
-    // ─── DÜZELTME 2: argmax ───────────────────────────────────────
-    // score() dizi döndürür, en yüksek skoru bul
-    let maxIdx = 0;
-    for (let i = 1; i < skorlar.length; i++)
-      if (skorlar[i] > skorlar[maxIdx]) maxIdx = i;
-
-    const tahmin = SINIFLAR[maxIdx];
-
-    // aT göster + debug
-    document.getElementById("ham-at").textContent = atM.toFixed(2);
-    dbg(`input=[${axM.toFixed(1)},${ayM.toFixed(1)},${azM.toFixed(1)},${atM.toFixed(1)}] → ${tahmin}(idx:${maxIdx})`);
-
-    if (!tahmin) { dbg("SINIFLAR eşleşmedi!"); return; }
-
-    // Önceki kartı söndür
-    if (mevcutTahmin) {
-      const eski = document.getElementById("kart-" + mevcutTahmin);
-      if (eski) eski.classList.remove("aktif");
-    }
-
-    // Yeni kartı yak
-    const yeniKart = document.getElementById("kart-" + tahmin);
-    if (yeniKart) yeniKart.classList.add("aktif");
-
-    const m = META[tahmin] || {};
-    document.getElementById("tc-value").className   = "tc-value";
-    document.getElementById("tc-value").textContent = m.label || tahmin.toUpperCase();
-    document.getElementById("tc-emoji").textContent = m.emoji || "❓";
-    mevcutTahmin = tahmin;
-
-    sureler[tahmin] = (sureler[tahmin] || 0) + 1;
-    const tEl = document.getElementById("t-" + tahmin);
-    if (tEl) tEl.textContent = fmt(sureler[tahmin]);
-
-    // Oturma uyarısı
-    if (tahmin === "oturma") {
-      oturmaSayac++;
-      if (oturmaSayac >= OTURMA_LIMIT) document.getElementById("uyari").style.display = "block";
-    } else {
-      oturmaSayac = 0;
-      document.getElementById("uyari").style.display = "none";
-    }
-
-  } catch(e) { log("Tahmin hatası: " + e.message); dbg("HATA: " + e.message); }
-}
-
-// ── Kontroller ─────────────────────────────────────────────────
 function durdur() {
   aktif = false;
   document.getElementById("status-dot").classList.remove("active");
@@ -452,20 +578,23 @@ function devamEt() {
 
 function yenidenBaslat() {
   if (listener) window.removeEventListener("devicemotion", listener, true);
-  sureler = {yurume:0,kosma:0,ziplama:0,merdiven:0,oturma:0};
-  oturmaSayac = 0; mevcutTahmin = null; buffer = [];
+  sureler       = {yurume:0, kosma:0, ziplama:0, merdiven:0, oturma:0};
+  oturmaSayac   = 0;
+  mevcutTahmin  = null;
+  buffer        = [];
+  tahminGecmisi = [];
   document.getElementById("tc-value").className   = "tc-value idle";
   document.getElementById("tc-value").textContent = "BEKLENİYOR";
   document.getElementById("tc-emoji").textContent  = "⏳";
   document.getElementById("uyari").style.display   = "none";
+  document.getElementById("conf-bar").style.width  = "0%";
+  document.getElementById("conf-label").textContent = "GÜVEN: –";
   document.querySelectorAll(".akt-card").forEach(k => k.classList.remove("aktif"));
   ["yurume","kosma","ziplama","merdiven","oturma"].forEach(k => {
     const el = document.getElementById("t-"+k); if(el) el.textContent = "0s";
   });
-  ["ham-x","ham-y","ham-z","ham-at"].forEach(id => {
-    const el = document.getElementById(id); if(el) el.textContent = "–";
-  });
-  dbg("sıfırlandı");
+  ["ham-x","ham-y","ham-z"].forEach(id => document.getElementById(id).textContent = "–");
+  ["dbg-mag","dbg-delta","dbg-state"].forEach(id => document.getElementById(id).textContent = "–");
   baslat();
 }
 </script>
