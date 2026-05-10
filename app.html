@@ -1,78 +1,425 @@
-// ... (CSS kısımları aynı kalabilir, sadece script içini tamamen şununla değiştir kral)
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>İvmeÖlçer — Canlı Analiz</title>
+  <script src="model.js?v=999"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:      #070a0e;
+      --surface: #0d1117;
+      --lift:    #141c26;
+      --border:  #1e2d3d;
+      --line:    #243447;
+      --green:   #39e06e;
+      --blue:    #00b4d8;
+      --warn:    #f5a623;
+      --red:     #ff4560;
+      --text:    #dde6f0;
+      --muted:   #5a7080;
+      --dim:     #1e2d3d;
+      --mono:    'Share Tech Mono', monospace;
+      --head:    'Barlow Condensed', sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--head);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    body::before {
+      content: '';
+      pointer-events: none;
+      position: fixed; inset: 0; z-index: 9999;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 3px,
+        rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
+      );
+    }
 
-const SINIFLAR = ["kosma", "merdiven", "oturma", "yurume", "ziplama"]; // PYTHON ÇIKTISINA GÖRE GÜNCELLE!
+    /* TOPBAR */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px; height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .topbar-logo { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; color: var(--green); }
+    .topbar-logo span { color: var(--muted); }
+    .topbar-back {
+      font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+      color: var(--muted); text-decoration: none;
+      padding: 5px 12px; border: 1px solid var(--border); border-radius: 3px;
+      transition: color .2s, border-color .2s;
+    }
+    .topbar-back:hover { color: var(--text); border-color: var(--line); }
 
-const EMOJİLER = { kosma: "🏃", merdiven: "🪜", oturma: "🪑", yurume: "🚶", ziplama: "⬆️", diger: "❓" };
-const WINDOW_SIZE = 40;
+    /* MAIN */
+    .main {
+      flex: 1; display: flex; flex-direction: column;
+      padding: 16px; gap: 12px;
+      max-width: 480px; width: 100%; margin: 0 auto;
+    }
+
+    /* STATUS */
+    .status-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    }
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--dim); flex-shrink: 0; transition: background .3s;
+    }
+    .status-dot.active {
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 5px var(--green); }
+      50%      { box-shadow: 0 0 14px var(--green); }
+    }
+    .status-text { font-family: var(--mono); font-size: 11px; letter-spacing: 1px; color: var(--muted); flex:1; }
+
+    /* CONTROLS */
+    .controls { display: flex; gap: 8px; }
+    .btn-ctrl {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 10px 6px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; font-family: var(--head); font-weight: 600;
+      font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--muted); cursor: pointer;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .btn-ctrl .ic { font-size: 16px; }
+    .btn-ctrl:active { transform: scale(0.97); }
+    .btn-ctrl.green { border-color: rgba(57,224,110,.3); color: var(--green); }
+    .btn-ctrl.green:hover { background: rgba(57,224,110,.07); }
+    .btn-ctrl.red   { border-color: rgba(255,69,96,.3);  color: var(--red);   }
+    .btn-ctrl.red:hover   { background: rgba(255,69,96,.07); }
+
+    /* ALERT */
+    .alert {
+      display: none; padding: 12px 16px;
+      background: rgba(245,166,35,.08); border: 1px solid rgba(245,166,35,.35);
+      border-radius: 6px; font-family: var(--mono); font-size: 11px; letter-spacing:1px;
+      color: var(--warn); text-align: center;
+    }
+
+    /* TAHMIN CARD */
+    .tahmin-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 28px 20px 24px; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .tahmin-card::before, .tahmin-card::after {
+      content: ''; position: absolute;
+      width: 12px; height: 12px; border-color: var(--green); border-style: solid; opacity: .4;
+    }
+    .tahmin-card::before { top:8px; left:8px; border-width:1px 0 0 1px; }
+    .tahmin-card::after  { bottom:8px; right:8px; border-width:0 1px 1px 0; }
+
+    .tc-label { font-family:var(--mono); font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-bottom:12px; }
+    .tc-emoji { font-size:32px; margin-bottom:8px; transition: all .2s; }
+    .tc-value {
+      font-family:var(--head); font-size:52px; font-weight:800;
+      letter-spacing:-1px; text-transform:uppercase; color:var(--green);
+      transition: color .3s; line-height:1;
+    }
+    .tc-value.idle { font-size:20px; font-weight:300; color:var(--dim); letter-spacing:4px; }
+
+    /* AKTİVİTE GRID — 5 kart (2+2+1) */
+    .akt-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .akt-grid .akt-card:nth-child(5) { grid-column: 1 / -1; }
+
+    .akt-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+      padding: 14px 12px; display: flex; align-items: center; gap: 12px;
+      transition: border-color .25s, background .25s;
+    }
+    .akt-card.aktif { border-color: var(--green); background: rgba(57,224,110,.05); }
+    .akt-card.aktif .akt-name { color: var(--green); }
+    .akt-icon { font-size: 22px; flex-shrink: 0; }
+    .akt-info { flex: 1; }
+    .akt-name {
+      font-family:var(--head); font-weight:800; font-size:15px;
+      letter-spacing:.5px; text-transform:uppercase; color:var(--text); transition:color .25s;
+    }
+    .akt-time { font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:2px; }
+
+    /* SENSOR */
+    .sensor-row { display:flex; gap:8px; }
+    .sensor-box {
+      flex:1; background:var(--surface); border:1px solid var(--border);
+      border-radius:6px; padding:10px; text-align:center;
+    }
+    .sensor-axis { font-family:var(--mono); font-size:10px; letter-spacing:2px; color:var(--muted); margin-bottom:4px; }
+    .sensor-val  { font-family:var(--mono); font-size:15px; color:var(--text); }
+    .sensor-val.green { color:var(--green); }
+
+    /* OVERLAY */
+    #start-overlay {
+      position:fixed; inset:0; z-index:200; background:var(--bg);
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      text-align:center; padding:40px; transition:opacity .4s;
+    }
+    #start-overlay.hidden { opacity:0; pointer-events:none; }
+    #start-overlay::before {
+      content:''; position:absolute; inset:0;
+      background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 50px 50px; opacity:.2;
+    }
+    .so-logo { font-family:var(--mono); font-size:13px; letter-spacing:3px; color:var(--green); margin-bottom:48px; position:relative; }
+    .so-title {
+      font-family:var(--head); font-size:clamp(40px,12vw,72px); font-weight:800;
+      text-transform:uppercase; letter-spacing:-2px; color:var(--text); margin-bottom:16px; position:relative;
+    }
+    .so-title em { font-style:normal; color:var(--green); }
+    .so-sub { font-family:var(--head); font-weight:300; font-size:16px; color:var(--muted); max-width:340px; line-height:1.5; margin-bottom:48px; position:relative; }
+    .so-btn {
+      position:relative; padding:18px 48px; background:var(--green); color:#000;
+      font-family:var(--head); font-weight:800; font-size:18px; letter-spacing:1px;
+      text-transform:uppercase; border:none; border-radius:4px; cursor:pointer;
+      box-shadow:0 0 40px rgba(57,224,110,.3); transition:transform .15s, box-shadow .2s;
+    }
+    .so-btn:hover { transform:translateY(-2px); box-shadow:0 0 60px rgba(57,224,110,.45); }
+    .so-back { position:relative; margin-top:20px; font-family:var(--mono); font-size:11px; letter-spacing:1px; color:var(--muted); text-decoration:none; }
+    .so-back:hover { color:var(--text); }
+  </style>
+</head>
+<body>
+
+  <!-- OVERLAY -->
+  <div id="start-overlay">
+    <div class="so-logo">// İVMEÖLÇER — ANALİZ MODÜLÜ</div>
+    <div class="so-title">Canlı<br /><em>Analiz</em></div>
+    <p class="so-sub">Sensörler etkinleştirilecek. Başlatmak için aşağıdaki butona dokun.</p>
+    <button class="so-btn" onclick="izinAlVeBaslat()">Sistemi Başlat</button>
+    <a href="index.html" class="so-back">← Ana Sayfaya Dön</a>
+  </div>
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-logo">İvme<span>Ölçer</span></div>
+    <a href="index.html" class="topbar-back">← Geri</a>
+  </div>
+
+  <!-- İÇERİK -->
+  <div class="main">
+
+    <div class="status-row">
+      <div class="status-dot" id="status-dot"></div>
+      <span class="status-text" id="durum">Başlatılıyor...</span>
+    </div>
+
+    <div class="controls">
+      <button class="btn-ctrl red"   id="btn-durdur"  onclick="durdur()"        style="display:none">
+        <span class="ic">⏹</span>Durdur
+      </button>
+      <button class="btn-ctrl green" id="btn-devam"   onclick="devamEt()"       style="display:none">
+        <span class="ic">▶</span>Devam
+      </button>
+      <button class="btn-ctrl green" id="btn-yeniden" onclick="yenidenBaslat()" style="display:none">
+        <span class="ic">🔄</span>Yeniden
+      </button>
+    </div>
+
+    <div class="alert" id="uyari">⚠ 10+ DAKİKA OTURUYORSUN — KALK HAREKET ET!</div>
+
+    <div class="tahmin-card">
+      <div class="tc-label">// şu anki hareket</div>
+      <div class="tc-emoji" id="tc-emoji">⏳</div>
+      <div class="tc-value idle" id="tc-value">BEKLENİYOR</div>
+    </div>
+
+    <!-- 5 kart — "diger" YOK -->
+    <div class="akt-grid">
+      <div class="akt-card" id="kart-yurume">
+        <div class="akt-icon">🚶</div>
+        <div class="akt-info"><div class="akt-name">Yürüme</div><div class="akt-time" id="t-yurume">0s</div></div>
+      </div>
+      <div class="akt-card" id="kart-kosma">
+        <div class="akt-icon">🏃</div>
+        <div class="akt-info"><div class="akt-name">Koşma</div><div class="akt-time" id="t-kosma">0s</div></div>
+      </div>
+      <div class="akt-card" id="kart-ziplama">
+        <div class="akt-icon">⬆️</div>
+        <div class="akt-info"><div class="akt-name">Zıplama</div><div class="akt-time" id="t-ziplama">0s</div></div>
+      </div>
+      <div class="akt-card" id="kart-merdiven">
+        <div class="akt-icon">🪜</div>
+        <div class="akt-info"><div class="akt-name">Merdiven</div><div class="akt-time" id="t-merdiven">0s</div></div>
+      </div>
+      <!-- 5. kart: tam genişlik -->
+      <div class="akt-card" id="kart-oturma">
+        <div class="akt-icon">🪑</div>
+        <div class="akt-info"><div class="akt-name">Oturma</div><div class="akt-time" id="t-oturma">0s</div></div>
+      </div>
+    </div>
+
+    <div class="sensor-row">
+      <div class="sensor-box"><div class="sensor-axis">X</div><div class="sensor-val" id="ham-x">–</div></div>
+      <div class="sensor-box"><div class="sensor-axis">Y</div><div class="sensor-val" id="ham-y">–</div></div>
+      <div class="sensor-box"><div class="sensor-axis">Z</div><div class="sensor-val green" id="ham-z">–</div></div>
+    </div>
+
+  </div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+//  ÖNEMLİ: SINIFLAR dizisi model.classes_ çıktısıyla BİREBİR olmalı
+//  sa.py çalıştır → terminaldeki son satır:  const SINIFLAR = [...]
+//  O listeyi buraya yapıştır. Şu an sadece yurume+ziplama verisi var.
+// ══════════════════════════════════════════════════════════════════
+const SINIFLAR = ["yurume", "ziplama"];
+
+const META = {
+  yurume:   { emoji:"🚶", label:"YÜRÜME"   },
+  kosma:    { emoji:"🏃", label:"KOŞMA"    },
+  ziplama:  { emoji:"⬆️", label:"ZIPLAMA"  },
+  merdiven: { emoji:"🪜", label:"MERDİVEN" },
+  oturma:   { emoji:"🪑", label:"OTURMA"   },
+};
+
+const WINDOW_SIZE  = 50;
+const OTURMA_LIMIT = 600;
+
 let buffer = [], aktif = false, listener = null;
-let sureler = { kosma:0, merdiven:0, oturma:0, yurume:0, ziplama:0, diger:0 };
-let mevcutTahmin = null;
+let mevcutTahmin = null, oturmaSayac = 0;
+let sureler = { yurume:0, kosma:0, ziplama:0, merdiven:0, oturma:0 };
+
+function log(m) { document.getElementById("durum").textContent = m; }
+function fmt(s) { return s < 60 ? s+"s" : Math.floor(s/60)+"dk "+(s%60)+"s"; }
+
+function izinAlVeBaslat() {
+  const ov = document.getElementById("start-overlay");
+  ov.classList.add("hidden");
+  setTimeout(() => ov.style.display = "none", 400);
+
+  if (typeof DeviceMotionEvent !== "undefined" &&
+      typeof DeviceMotionEvent.requestPermission === "function") {
+    DeviceMotionEvent.requestPermission()
+      .then(s => s === "granted" ? baslat() : log("İzin verilmedi!"))
+      .catch(e => log("Hata: " + e));
+  } else { baslat(); }
+}
 
 function baslat() {
-    if (typeof score === "undefined") { log("model.js bulunamadı!"); return; }
-    aktif = true; buffer = [];
-    document.getElementById("status-dot").classList.add("active");
-    log("Analiz akıyor usta...");
-    
-    // Butonları ayarla
-    document.getElementById("btn-durdur").style.display = "flex";
-    document.getElementById("btn-devam").style.display = "none";
-    document.getElementById("btn-yeniden").style.display = "none";
+  if (typeof score === "undefined") { log("model.js yüklenemedi!"); return; }
+  aktif = true; buffer = [];
+  document.getElementById("status-dot").classList.add("active");
+  log("Sensörler aktif...");
+  document.getElementById("btn-durdur").style.display  = "flex";
+  document.getElementById("btn-devam").style.display   = "none";
+  document.getElementById("btn-yeniden").style.display = "none";
 
-    listener = (e) => {
-        if (!aktif) return;
-        const a = e.accelerationIncludingGravity;
-        if (a && a.x !== null) {
-            buffer.push([a.x, a.y, a.z]);
-            // Ekranda canlı veriyi göster
-            document.getElementById("ham-x").textContent = a.x.toFixed(1);
-            document.getElementById("ham-y").textContent = a.y.toFixed(1);
-            document.getElementById("ham-z").textContent = a.z.toFixed(1);
-
-            if (buffer.length >= WINDOW_SIZE) {
-                tahminEt(buffer);
-                buffer = [];
-            }
-        }
-    };
-    window.addEventListener("devicemotion", listener, true);
+  listener = (e) => {
+    if (!aktif) return;
+    const a = e.accelerationIncludingGravity;
+    if (!a || a.x === null) return;
+    buffer.push([a.x, a.y, a.z]);
+    document.getElementById("ham-x").textContent = a.x.toFixed(2);
+    document.getElementById("ham-y").textContent = a.y.toFixed(2);
+    document.getElementById("ham-z").textContent = a.z.toFixed(2);
+    if (buffer.length >= WINDOW_SIZE) { tahminEt([...buffer]); buffer = []; }
+  };
+  window.addEventListener("devicemotion", listener, true);
 }
 
 function tahminEt(data) {
-    try {
-        let sX = 0, sY = 0, sZ = 0, sMag = 0;
-        data.forEach(d => {
-            sX += d[0]; sY += d[1]; sZ += d[2];
-            sMag += Math.sqrt(d[0]**2 + d[1]**2 + d[2]**2); // Magnitude
-        });
-        
-        const n = data.length;
-        const input = [sX/n, sY/n, sZ/n, sMag/n]; // Modelin beklediği 4 veri
+  try {
+    let sX=0, sY=0, sZ=0;
+    for (const d of data) { sX+=d[0]; sY+=d[1]; sZ+=d[2]; }
+    const n = data.length;
 
-        const skorlar = score(input);
-        let maxIdx = skorlar.indexOf(Math.max(...skorlar));
-        const tahmin = SINIFLAR[maxIdx] || "diger";
+    // ─── BUG FİX ──────────────────────────────────────────────────────
+    // m2cgen score() → dizi döner  [0.1, 0.9]
+    // Hatalı: let idx = score(input)  → idx bir dizi, SINIFLAR[dizi]=undefined
+    // Doğru: argmax → en yüksek skoru bul, onun index'ini al
+    // ──────────────────────────────────────────────────────────────────
+    const skorlar = score([sX/n, sY/n, sZ/n]);
+    let maxIdx = 0;
+    for (let i = 1; i < skorlar.length; i++)
+      if (skorlar[i] > skorlar[maxIdx]) maxIdx = i;
 
-        guncelleUI(tahmin);
-    } catch (e) { console.log("Hata:", e); }
-}
+    const tahmin = SINIFLAR[maxIdx];
+    if (!tahmin) return;
 
-function guncelleUI(tahmin) {
-    const el = document.getElementById("tahmin");
-    const emoji = document.getElementById("tahmin-emoji");
-    
-    el.classList.remove("bekleniyor");
-    el.textContent = tahmin.toUpperCase();
-    emoji.textContent = EMOJİLER[tahmin] || "❓";
-
-    // Kartları güncelle
-    document.querySelectorAll(".aktivite-kart").forEach(k => k.classList.remove("aktif"));
-    const kart = document.getElementById("kart-" + tahmin);
-    if (kart) {
-        kart.classList.add("aktif");
-        sureler[tahmin]++;
-        document.getElementById("t-" + tahmin).textContent = sureler[tahmin] + "s";
+    // UI
+    if (mevcutTahmin) {
+      const eski = document.getElementById("kart-" + mevcutTahmin);
+      if (eski) eski.classList.remove("aktif");
     }
+    const yeniKart = document.getElementById("kart-" + tahmin);
+    if (yeniKart) yeniKart.classList.add("aktif");
+
+    const m = META[tahmin] || {};
+    document.getElementById("tc-value").className   = "tc-value";
+    document.getElementById("tc-value").textContent = m.label || tahmin.toUpperCase();
+    document.getElementById("tc-emoji").textContent  = m.emoji || "❓";
+    mevcutTahmin = tahmin;
+
+    sureler[tahmin] = (sureler[tahmin] || 0) + 1;
+    const tEl = document.getElementById("t-" + tahmin);
+    if (tEl) tEl.textContent = fmt(sureler[tahmin]);
+
+    // oturma uyarısı
+    if (tahmin === "oturma") {
+      oturmaSayac++;
+      if (oturmaSayac >= OTURMA_LIMIT) document.getElementById("uyari").style.display = "block";
+    } else {
+      oturmaSayac = 0;
+      document.getElementById("uyari").style.display = "none";
+    }
+  } catch(e) { log("Tahmin hatası: " + e.message); }
 }
 
-// Durdur, Devam ve Yeniden Başlat fonksiyonlarını senin sistemine entegre ettim kral.
+function durdur() {
+  aktif = false;
+  document.getElementById("status-dot").classList.remove("active");
+  log("Durduruldu.");
+  document.getElementById("btn-durdur").style.display  = "none";
+  document.getElementById("btn-devam").style.display   = "flex";
+  document.getElementById("btn-yeniden").style.display = "flex";
+}
+
+function devamEt() {
+  aktif = true;
+  document.getElementById("status-dot").classList.add("active");
+  log("Sensörler aktif...");
+  document.getElementById("btn-durdur").style.display  = "flex";
+  document.getElementById("btn-devam").style.display   = "none";
+  document.getElementById("btn-yeniden").style.display = "flex";
+}
+
+function yenidenBaslat() {
+  if (listener) window.removeEventListener("devicemotion", listener, true);
+  sureler = {yurume:0,kosma:0,ziplama:0,merdiven:0,oturma:0};
+  oturmaSayac = 0; mevcutTahmin = null; buffer = [];
+  document.getElementById("tc-value").className   = "tc-value idle";
+  document.getElementById("tc-value").textContent = "BEKLENİYOR";
+  document.getElementById("tc-emoji").textContent  = "⏳";
+  document.getElementById("uyari").style.display   = "none";
+  document.querySelectorAll(".akt-card").forEach(k => k.classList.remove("aktif"));
+  ["yurume","kosma","ziplama","merdiven","oturma"].forEach(k => {
+    const el = document.getElementById("t-"+k); if(el) el.textContent = "0s";
+  });
+  ["ham-x","ham-y","ham-z"].forEach(id => document.getElementById(id).textContent = "–");
+  baslat();
+}
+</script>
+</body>
+</html>
