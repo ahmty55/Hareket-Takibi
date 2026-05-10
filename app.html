@@ -136,6 +136,14 @@
     }
     .tc-value.idle { font-size:20px; font-weight:300; color:var(--dim); letter-spacing:4px; }
 
+    /* DEBUG SATIRI */
+    .debug-bar {
+      font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+      color: var(--dim); text-align: center; padding: 6px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
     /* AKTİVİTE GRID — 5 kart (2+2+1) */
     .akt-grid {
       display: grid;
@@ -245,7 +253,10 @@
       <div class="tc-value idle" id="tc-value">BEKLENİYOR</div>
     </div>
 
-    <!-- 5 kart — "diger" YOK -->
+    <!-- DEBUG SATIRI — sorun çözülünce kaldırabilirsin -->
+    <div class="debug-bar" id="debug-bar">debug: bekleniyor...</div>
+
+    <!-- 5 kart — diger YOK -->
     <div class="akt-grid">
       <div class="akt-card" id="kart-yurume">
         <div class="akt-icon">🚶</div>
@@ -263,7 +274,7 @@
         <div class="akt-icon">🪜</div>
         <div class="akt-info"><div class="akt-name">Merdiven</div><div class="akt-time" id="t-merdiven">0s</div></div>
       </div>
-      <!-- 5. kart: tam genişlik -->
+      <!-- 5. kart tam genişlik -->
       <div class="akt-card" id="kart-oturma">
         <div class="akt-icon">🪑</div>
         <div class="akt-info"><div class="akt-name">Oturma</div><div class="akt-time" id="t-oturma">0s</div></div>
@@ -274,17 +285,32 @@
       <div class="sensor-box"><div class="sensor-axis">X</div><div class="sensor-val" id="ham-x">–</div></div>
       <div class="sensor-box"><div class="sensor-axis">Y</div><div class="sensor-val" id="ham-y">–</div></div>
       <div class="sensor-box"><div class="sensor-axis">Z</div><div class="sensor-val green" id="ham-z">–</div></div>
+      <div class="sensor-box"><div class="sensor-axis">aT</div><div class="sensor-val green" id="ham-at">–</div></div>
     </div>
 
   </div>
 
 <script>
-// ══════════════════════════════════════════════════════════════════
-//  ÖNEMLİ: SINIFLAR dizisi model.classes_ çıktısıyla BİREBİR olmalı
-//  sa.py çalıştır → terminaldeki son satır:  const SINIFLAR = [...]
-//  O listeyi buraya yapıştır. Şu an sadece yurume+ziplama verisi var.
-// ══════════════════════════════════════════════════════════════════
-const SINIFLAR = ["yurume", "ziplama"];
+// ════════════════════════════════════════════════════════════════
+//  model.js ANALİZİ SONUCU:
+//
+//  GİRİŞ (4 özellik):
+//    input[0] = ax   (ortalama X ivmesi)
+//    input[1] = ay   (ortalama Y ivmesi)
+//    input[2] = az   (ortalama Z ivmesi)
+//    input[3] = aT   (ortalama toplam büyüklük = sqrt(x²+y²+z²))
+//
+//  ÇIKIŞ (5 elemanlı dizi → 5 sınıf, sklearn ALFABETİK sıralar):
+//    [s_kosma, s_merdiven, s_oturma, s_yurume, s_ziplama]
+//
+//  ★ DÜZELTME 1: score([x,y,z]) → score([x,y,z,aT])
+//  ★ DÜZELTME 2: SINIFLAR 2→5 eleman
+//  ★ DÜZELTME 3: argmax ile en yüksek skoru bul
+//
+//  sa.py çalıştırınca terminaldeki son satırı buraya yapıştır:
+//    const SINIFLAR = ['kosma','merdiven','oturma','yurume','ziplama']
+// ════════════════════════════════════════════════════════════════
+const SINIFLAR = ["kosma", "merdiven", "oturma", "yurume", "ziplama"];
 
 const META = {
   yurume:   { emoji:"🚶", label:"YÜRÜME"   },
@@ -295,7 +321,7 @@ const META = {
 };
 
 const WINDOW_SIZE  = 50;
-const OTURMA_LIMIT = 600;
+const OTURMA_LIMIT = 600;   // pencere ≈ 10 dk
 
 let buffer = [], aktif = false, listener = null;
 let mevcutTahmin = null, oturmaSayac = 0;
@@ -303,7 +329,9 @@ let sureler = { yurume:0, kosma:0, ziplama:0, merdiven:0, oturma:0 };
 
 function log(m) { document.getElementById("durum").textContent = m; }
 function fmt(s) { return s < 60 ? s+"s" : Math.floor(s/60)+"dk "+(s%60)+"s"; }
+function dbg(m) { const el=document.getElementById("debug-bar"); if(el) el.textContent="debug: "+m; }
 
+// ── İzin + Başlat ──────────────────────────────────────────────
 function izinAlVeBaslat() {
   const ov = document.getElementById("start-overlay");
   ov.classList.add("hidden");
@@ -317,6 +345,7 @@ function izinAlVeBaslat() {
   } else { baslat(); }
 }
 
+// ── Baslat ─────────────────────────────────────────────────────
 function baslat() {
   if (typeof score === "undefined") { log("model.js yüklenemedi!"); return; }
   aktif = true; buffer = [];
@@ -339,44 +368,58 @@ function baslat() {
   window.addEventListener("devicemotion", listener, true);
 }
 
+// ── Tahmin ─────────────────────────────────────────────────────
 function tahminEt(data) {
   try {
-    let sX=0, sY=0, sZ=0;
-    for (const d of data) { sX+=d[0]; sY+=d[1]; sZ+=d[2]; }
-    const n = data.length;
+    let sX=0, sY=0, sZ=0, sMag=0;
+    for (const d of data) {
+      sX   += d[0];
+      sY   += d[1];
+      sZ   += d[2];
+      sMag += Math.sqrt(d[0]*d[0] + d[1]*d[1] + d[2]*d[2]); // aT
+    }
+    const n   = data.length;
+    const axM = sX/n, ayM = sY/n, azM = sZ/n, atM = sMag/n;
 
-    // ─── BUG FİX ──────────────────────────────────────────────────────
-    // m2cgen score() → dizi döner  [0.1, 0.9]
-    // Hatalı: let idx = score(input)  → idx bir dizi, SINIFLAR[dizi]=undefined
-    // Doğru: argmax → en yüksek skoru bul, onun index'ini al
-    // ──────────────────────────────────────────────────────────────────
-    const skorlar = score([sX/n, sY/n, sZ/n]);
+    // ─── DÜZELTME 1: 4. özelliği ekle (aT) ───────────────────────
+    // model.js'de input[3] kullanılıyor; eksik olunca ağaç bozuluyordu
+    const skorlar = score([axM, ayM, azM, atM]);
+
+    // ─── DÜZELTME 2: argmax ───────────────────────────────────────
+    // score() dizi döndürür, en yüksek skoru bul
     let maxIdx = 0;
     for (let i = 1; i < skorlar.length; i++)
       if (skorlar[i] > skorlar[maxIdx]) maxIdx = i;
 
     const tahmin = SINIFLAR[maxIdx];
-    if (!tahmin) return;
 
-    // UI
+    // aT göster + debug
+    document.getElementById("ham-at").textContent = atM.toFixed(2);
+    dbg(`input=[${axM.toFixed(1)},${ayM.toFixed(1)},${azM.toFixed(1)},${atM.toFixed(1)}] → ${tahmin}(idx:${maxIdx})`);
+
+    if (!tahmin) { dbg("SINIFLAR eşleşmedi!"); return; }
+
+    // Önceki kartı söndür
     if (mevcutTahmin) {
       const eski = document.getElementById("kart-" + mevcutTahmin);
       if (eski) eski.classList.remove("aktif");
     }
+
+    // Yeni kartı yak
     const yeniKart = document.getElementById("kart-" + tahmin);
     if (yeniKart) yeniKart.classList.add("aktif");
 
     const m = META[tahmin] || {};
     document.getElementById("tc-value").className   = "tc-value";
     document.getElementById("tc-value").textContent = m.label || tahmin.toUpperCase();
-    document.getElementById("tc-emoji").textContent  = m.emoji || "❓";
+    document.getElementById("tc-emoji").textContent = m.emoji || "❓";
     mevcutTahmin = tahmin;
 
     sureler[tahmin] = (sureler[tahmin] || 0) + 1;
     const tEl = document.getElementById("t-" + tahmin);
     if (tEl) tEl.textContent = fmt(sureler[tahmin]);
 
-    // oturma uyarısı
+    // Oturma uyarısı
     if (tahmin === "oturma") {
       oturmaSayac++;
       if (oturmaSayac >= OTURMA_LIMIT) document.getElementById("uyari").style.display = "block";
@@ -384,9 +427,11 @@ function tahminEt(data) {
       oturmaSayac = 0;
       document.getElementById("uyari").style.display = "none";
     }
-  } catch(e) { log("Tahmin hatası: " + e.message); }
+
+  } catch(e) { log("Tahmin hatası: " + e.message); dbg("HATA: " + e.message); }
 }
 
+// ── Kontroller ─────────────────────────────────────────────────
 function durdur() {
   aktif = false;
   document.getElementById("status-dot").classList.remove("active");
@@ -417,7 +462,10 @@ function yenidenBaslat() {
   ["yurume","kosma","ziplama","merdiven","oturma"].forEach(k => {
     const el = document.getElementById("t-"+k); if(el) el.textContent = "0s";
   });
-  ["ham-x","ham-y","ham-z"].forEach(id => document.getElementById(id).textContent = "–");
+  ["ham-x","ham-y","ham-z","ham-at"].forEach(id => {
+    const el = document.getElementById(id); if(el) el.textContent = "–";
+  });
+  dbg("sıfırlandı");
   baslat();
 }
 </script>
