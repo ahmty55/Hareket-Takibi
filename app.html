@@ -316,36 +316,47 @@
 
     <!-- Debug: magnitude + hareket eşiği -->
     <div class="debug-row">
-      <div class="debug-box"><div class="debug-axis">MAGNİTÜD</div><div class="debug-val" id="dbg-mag">–</div></div>
-      <div class="debug-box"><div class="debug-axis">HAM DELTA</div><div class="debug-val" id="dbg-delta">–</div></div>
+      <div class="debug-box"><div class="debug-axis">LIN MAG</div><div class="debug-val" id="dbg-mag">–</div></div>
+      <div class="debug-box"><div class="debug-axis">STD MAG</div><div class="debug-val" id="dbg-delta">–</div></div>
       <div class="debug-box"><div class="debug-axis">DURUM</div><div class="debug-val" id="dbg-state">–</div></div>
     </div>
 
   </div>
 
 <script>
-// ══════════════════════════════════════════════════════════════════
-//  SINIFLAR: model.py → classes_ çıktısıyla BİREBİR eşleşmeli.
-//  model.js'deki score() fonksiyonu 5 elemanlı dizi döndürüyor:
-//  [yurume, kosma, ziplama, merdiven, oturma]  (eğitim sırasındaki sıra)
-// ══════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
+//  SINIFLAR — model.py → classes_ sırasıyla BİREBİR eşleşmeli
+// ════════════════════════════════════════════════════════════════════
 const SINIFLAR = ["yurume", "kosma", "ziplama", "merdiven", "oturma"];
 
-// ── Güven Skoru Eşiği (%65 altında "Belirsiz" göster) ─────────────
-const CONFIDENCE_THRESHOLD = 0.65;
+// ════════════════════════════════════════════════════════════════════
+//  KALIBRASYON PARAMETRELERİ
+// ════════════════════════════════════════════════════════════════════
 
-// ── Hareketsizlik Eşiği (m/s²) ────────────────────────────────────
-// Penceredeki ardışık örnekler arasındaki ortalama delta bu değerin
-// altındaysa model çalıştırılmaz, direkt "Oturma" döndürülür.
-const STILL_THRESHOLD = 0.25;
+// High-Pass Filter alfa: 0'a yakın → daha agresif yerçekimi soyma
+// 0.8 = yaklaşık 50 Hz örnekleme hızında ~1.6 Hz kesim frekansı
+const HPF_ALPHA = 0.8;
 
-// ── Smoothing: son kaç tahmini biriktirip oylama yapılacak ─────────
-const SMOOTH_WINDOW = 5;   // son 5 pencere tahmini
+// Hareketsizlik eşiği — HPF sonrası linear mag bu değerin altındaysa SABİT
+// (yerçekimi çıkarıldıktan sonra küçük değer → hareket yok)
+const STILL_THRESHOLD = 0.15;       // m/s²
 
-// ── Pencere boyutu (sample sayısı) ────────────────────────────────
+// Gürültü bastırma eşiği — bu altındaki küçük titremeleri sıfırla
+const NOISE_GATE = 0.05;            // m/s²
+
+// Confidence skoru eşiği — bu altında "Belirsiz" göster
+const CONFIDENCE_THRESHOLD = 0.62;
+
+// Smoothing: son kaç tahmin oylanacak
+const SMOOTH_WINDOW = 5;
+
+// Pencere boyutu (sample sayısı)
 const WINDOW_SIZE  = 50;
 const OTURMA_LIMIT = 600;
 
+// ════════════════════════════════════════════════════════════════════
+//  DURUM DEĞİŞKENLERİ
+// ════════════════════════════════════════════════════════════════════
 const META = {
   yurume:   { emoji:"🚶", label:"YÜRÜME"   },
   kosma:    { emoji:"🏃", label:"KOŞMA"    },
@@ -360,25 +371,100 @@ let listener      = null;
 let mevcutTahmin  = null;
 let oturmaSayac   = 0;
 let sureler       = { yurume:0, kosma:0, ziplama:0, merdiven:0, oturma:0 };
-let tahminGecmisi = [];   // Moving-average için son N tahmin
+let tahminGecmisi = [];
+
+// High-Pass Filter durumu — yerçekimi tahmini (düşük frekanslı bileşen)
+// Her eksen için ayrı tutulur: { x, y, z }
+let hpfDurum = { x: 0, y: 0, z: 0 };
+let hpfBaslatildi = false;
+
+// ════════════════════════════════════════════════════════════════════
+//  YARDIMCI FONKSİYONLAR
+// ════════════════════════════════════════════════════════════════════
 
 function log(m) { document.getElementById("durum").textContent = m; }
 function fmt(s) { return s < 60 ? s+"s" : Math.floor(s/60)+"dk "+(s%60)+"s"; }
 
-// ── Hareketsizlik tespiti ──────────────────────────────────────────
-// Penceredeki ardışık örnekler arasındaki ortalama mutlak farkı döner.
-function hesaplaDelta(data) {
-  if (data.length < 2) return 999;
-  let toplamDelta = 0;
-  for (let i = 1; i < data.length; i++) {
-    toplamDelta += Math.abs(data[i][0] - data[i-1][0])
-                 + Math.abs(data[i][1] - data[i-1][1])
-                 + Math.abs(data[i][2] - data[i-1][2]);
+// ── High-Pass Filter (Yüksek Geçiren Filtre) ──────────────────────
+// Ham ivme = (yerçekimi) + (linear hareket ivmesi) + gürültü
+// Düşük geçiren filtre (exponential smoothing) ile yerçekimini tahmin et,
+// sonra ham veriden çıkar → geriye sadece hareket ivmesi kalır.
+//
+// gravTahmin[t] = α * gravTahmin[t-1] + (1-α) * hamVeri[t]
+// linearAcc[t]  = hamVeri[t] - gravTahmin[t]
+//
+// Bu işlem yön-bağımsız değil ama magnitude alma adımı onu yön-bağımsız yapıyor.
+function hpfFiltrele(ham) {
+  if (!hpfBaslatildi) {
+    // İlk örnekte yerçekimini ham veriden başlat
+    hpfDurum.x = ham.x;
+    hpfDurum.y = ham.y;
+    hpfDurum.z = ham.z;
+    hpfBaslatildi = true;
   }
-  return toplamDelta / (data.length - 1);
+
+  // Yerçekimi tahminini güncelle (düşük geçiren)
+  hpfDurum.x = HPF_ALPHA * hpfDurum.x + (1 - HPF_ALPHA) * ham.x;
+  hpfDurum.y = HPF_ALPHA * hpfDurum.y + (1 - HPF_ALPHA) * ham.y;
+  hpfDurum.z = HPF_ALPHA * hpfDurum.z + (1 - HPF_ALPHA) * ham.z;
+
+  // Linear ivme = ham - yerçekimi tahmini
+  return {
+    x: ham.x - hpfDurum.x,
+    y: ham.y - hpfDurum.y,
+    z: ham.z - hpfDurum.z,
+  };
 }
 
-// ── Moving-average / çoğunluk oylama ──────────────────────────────
+// ── Noise Gate ────────────────────────────────────────────────────
+// Çok küçük değerleri sıfırla — mikro titremeleri bastır
+function noiseGate(v) {
+  return Math.abs(v) < NOISE_GATE ? 0 : v;
+}
+
+// ── Magnitude hesabı ───────────────────────────────────────────────
+// √(x²+y²+z²) — yön bağımsız tek sayısal ivme büyüklüğü
+function magnitude(x, y, z) {
+  return Math.sqrt(x*x + y*y + z*z);
+}
+
+// ── Pencere istatistikleri (magnitude sinyali üzerinden) ─────────
+// data: [{linX, linY, linZ, mag}] dizisi
+// Döner: { meanMag, stdMag, maxMag, meanLinX, meanLinY, meanLinZ }
+function pencereIstatistikleri(data) {
+  const n = data.length;
+  let sumMag=0, sumX=0, sumY=0, sumZ=0;
+  let maxMag = 0;
+
+  for (const d of data) {
+    sumMag += d.mag;
+    sumX   += d.linX;
+    sumY   += d.linY;
+    sumZ   += d.linZ;
+    if (d.mag > maxMag) maxMag = d.mag;
+  }
+  const meanMag = sumMag / n;
+  const meanX   = sumX   / n;
+  const meanY   = sumY   / n;
+  const meanZ   = sumZ   / n;
+
+  // Standart sapma (varyans)
+  let varSum = 0;
+  for (const d of data) varSum += (d.mag - meanMag) ** 2;
+  const stdMag = Math.sqrt(varSum / n);
+
+  return { meanMag, stdMag, maxMag, meanX, meanY, meanZ };
+}
+
+// ── Hareketsizlik tespiti ──────────────────────────────────────────
+// Linear magnitude'un standart sapması düşükse → hareketsiz
+function hareketsizMi(stats) {
+  // stdMag: sinyalin ne kadar dalgalandığını ölçer
+  // Sabit dururken linear acc ~ 0, std da ~ 0
+  return stats.stdMag < STILL_THRESHOLD;
+}
+
+// ── Moving Average / Majority Vote ────────────────────────────────
 function smoothedTahmin(yeniTahmin) {
   tahminGecmisi.push(yeniTahmin);
   if (tahminGecmisi.length > SMOOTH_WINDOW) tahminGecmisi.shift();
@@ -390,19 +476,18 @@ function smoothedTahmin(yeniTahmin) {
   return maxK;
 }
 
-// ── Confidence bar güncelle ────────────────────────────────────────
+// ── Confidence bar ────────────────────────────────────────────────
 function updateConfBar(pct) {
   const bar  = document.getElementById("conf-bar");
   const lbl  = document.getElementById("conf-label");
-  const pct100 = Math.round(pct * 100);
-  bar.style.width = pct100 + "%";
+  const p    = Math.round(pct * 100);
+  bar.style.width      = p + "%";
   bar.style.background = pct >= CONFIDENCE_THRESHOLD ? "var(--green)" : "var(--warn)";
-  lbl.textContent = "GÜVEN: %" + pct100;
+  lbl.textContent      = "GÜVEN: %" + p;
 }
 
-// ── UI'ı güncelle ─────────────────────────────────────────────────
+// ── UI güncellemesi ───────────────────────────────────────────────
 function gosterTahmin(tahmin, confidence) {
-  // Önceki aktif kartı kaldır
   if (mevcutTahmin) {
     const eski = document.getElementById("kart-" + mevcutTahmin);
     if (eski) eski.classList.remove("aktif");
@@ -412,7 +497,6 @@ function gosterTahmin(tahmin, confidence) {
     document.getElementById("tc-value").className   = "tc-value belirsiz";
     document.getElementById("tc-value").textContent = "BELİRSİZ";
     document.getElementById("tc-emoji").textContent  = "🤔";
-    // Önceki kartı aktif bırakma
     return;
   }
 
@@ -425,12 +509,10 @@ function gosterTahmin(tahmin, confidence) {
   document.getElementById("tc-emoji").textContent  = m.emoji || "❓";
   mevcutTahmin = tahmin;
 
-  // Süre güncelle
   sureler[tahmin] = (sureler[tahmin] || 0) + 1;
   const tEl = document.getElementById("t-" + tahmin);
   if (tEl) tEl.textContent = fmt(sureler[tahmin]);
 
-  // Oturma uyarısı
   if (tahmin === "oturma") {
     oturmaSayac++;
     if (oturmaSayac >= OTURMA_LIMIT) document.getElementById("uyari").style.display = "block";
@@ -440,46 +522,44 @@ function gosterTahmin(tahmin, confidence) {
   }
 }
 
-// ── Ana tahmin fonksiyonu ──────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════
+//  ANA TAHMİN MOTORU
+// ════════════════════════════════════════════════════════════════════
 function tahminEt(data) {
+  // data: [{linX, linY, linZ, mag}] — HPF uygulanmış, gürültü temizlenmiş
+
   try {
-    // 1) Veri istatistikleri
-    let sX=0, sY=0, sZ=0;
-    for (const d of data) { sX+=d[0]; sY+=d[1]; sZ+=d[2]; }
-    const n   = data.length;
-    const aX  = sX / n;
-    const aY  = sY / n;
-    const aZ  = sZ / n;
+    // 1) Pencere istatistiklerini hesapla
+    const stats = pencereIstatistikleri(data);
 
-    // 2) Magnitude (input[3]) — model bu 4. özelliği bekliyor
-    //    Her örneğin büyüklüğünü alıp ortalamasını al
-    let sMag = 0;
-    for (const d of data) {
-      sMag += Math.sqrt(d[0]*d[0] + d[1]*d[1] + d[2]*d[2]);
-    }
-    const aMag = sMag / n;
+    // Debug göster
+    document.getElementById("dbg-mag").textContent   = stats.meanMag.toFixed(3);
+    document.getElementById("dbg-delta").textContent = stats.stdMag.toFixed(3);
 
-    // 3) Hareketsizlik (statik eşik) kontrolü
-    const delta = hesaplaDelta(data);
-    document.getElementById("dbg-delta").textContent = delta.toFixed(3);
-    document.getElementById("dbg-mag").textContent   = aMag.toFixed(2);
-
-    if (delta < STILL_THRESHOLD) {
-      // Telefon neredeyse hareketsiz → model çalıştırma
+    // 2) Hareketsizlik kontrolü (yön-bağımsız: magnitude STD kullanılıyor)
+    if (hareketsizMi(stats)) {
       document.getElementById("dbg-state").textContent = "SABİT";
       updateConfBar(1.0);
-      const smoothed = smoothedTahmin("oturma");
-      gosterTahmin(smoothed, 1.0);
+      gosterTahmin(smoothedTahmin("oturma"), 1.0);
       return;
     }
 
     document.getElementById("dbg-state").textContent = "AKTİF";
 
-    // 4) Modeli çalıştır — 4 özellik: [meanX, meanY, meanZ, meanMag]
-    const input   = [aX, aY, aZ, aMag];
+    // 3) Model girdisi oluştur
+    // model.js 4 özellik bekliyor: [meanX, meanY, meanZ, meanMag]
+    // meanX/Y/Z: ortalama linear ivme (HPF sonrası, yön bilgisi taşır ama az)
+    // meanMag   : yön-bağımsız toplam ivme büyüklüğü — en kritik özellik
+    const input = [
+      stats.meanX,    // input[0]
+      stats.meanY,    // input[1]
+      stats.meanZ,    // input[2]
+      stats.meanMag   // input[3] — magnitude, yön-bağımsız
+    ];
+
     const skorlar = score(input);
 
-    // 5) ArgMax + Confidence
+    // 4) ArgMax + Confidence
     let maxIdx = 0;
     for (let i = 1; i < skorlar.length; i++)
       if (skorlar[i] > skorlar[maxIdx]) maxIdx = i;
@@ -487,26 +567,30 @@ function tahminEt(data) {
     const confidence = skorlar[maxIdx];
     updateConfBar(confidence);
 
-    // 6) Düşük güven skoru → "Belirsiz"
+    // 5) Düşük güven → Belirsiz
     if (confidence < CONFIDENCE_THRESHOLD) {
       gosterTahmin("belirsiz", confidence);
       return;
     }
 
-    // 7) Moving-average smoothing
+    // 6) Majority vote smoothing
     const hammTahmin = SINIFLAR[maxIdx];
     if (!hammTahmin) return;
-    const smoothed = smoothedTahmin(hammTahmin);
-
-    gosterTahmin(smoothed, confidence);
+    gosterTahmin(smoothedTahmin(hammTahmin), confidence);
 
   } catch(e) { log("Tahmin hatası: " + e.message); }
 }
 
-// ── Sensör başlatma ────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════
+//  SENSÖR KATMANI
+// ════════════════════════════════════════════════════════════════════
 function baslat() {
   if (typeof score === "undefined") { log("model.js yüklenemedi!"); return; }
-  aktif = true; buffer = [];
+  aktif = true;
+  buffer = [];
+  hpfDurum = { x:0, y:0, z:0 };
+  hpfBaslatildi = false;
+
   document.getElementById("status-dot").classList.add("active");
   log("Sensörler aktif...");
   document.getElementById("btn-durdur").style.display  = "flex";
@@ -516,35 +600,71 @@ function baslat() {
   listener = (e) => {
     if (!aktif) return;
 
-    // ── Veri Normalizasyonu ──────────────────────────────────────
-    // Öncelik 1: e.acceleration  → tarayıcı yerçekimini zaten çıkarmış (linear acc.)
-    // Öncelik 2: e.accelerationIncludingGravity → ham veri (yerçekimi dahil)
-    // Model ham veriyle eğitildiyse önceliği tersine çevir.
-    // Şu an: linear acceleration tercih edilir. Eğer null gelirse fallback yapılır.
-    let a = e.acceleration;
-    let kaynakLineer = true;
-    if (!a || a.x === null || a.x === undefined) {
-      a = e.accelerationIncludingGravity;
-      kaynakLineer = false;
-    }
-    if (!a || a.x === null) return;
+    // ── Sensör Kaynağı Seçimi ──────────────────────────────────
+    // Strateji A: e.acceleration → tarayıcı zaten yerçekimini çıkarmış
+    //   Avantaj: doğal linear ivme, HPF'e gerek yok.
+    //   Dezavantaj: bazı cihazlarda null/0 döner.
+    //
+    // Strateji B: e.accelerationIncludingGravity → ham veri
+    //   Avantaj: her cihazda gelir.
+    //   Dezavantaj: yerçekimi dahil → HPF zorunlu.
+    //
+    // Kod her ikisini de dener; hangi kaynaktan gelirse gelsin
+    // HPF pipeline'dan geçirir (A için tekrar filtreden geçirmek
+    // zarar vermez, zaten ~0 olacak olan yerçekimi tahmini sıfıra yakın).
 
-    // Ham veri göster
-    document.getElementById("ham-x").textContent = a.x.toFixed(2);
-    document.getElementById("ham-y").textContent = a.y.toFixed(2);
-    document.getElementById("ham-z").textContent = a.z.toFixed(2);
+    let hamX, hamY, hamZ;
+    let kaynakEtiketi;
+
+    const linAcc = e.acceleration;
+    if (linAcc && linAcc.x !== null && linAcc.x !== undefined && linAcc.x !== 0) {
+      // Strateji A: tarayıcı linear ivme
+      hamX = linAcc.x;
+      hamY = linAcc.y;
+      hamZ = linAcc.z;
+      kaynakEtiketi = "LIN";
+    } else {
+      // Strateji B: ham + yerçekimi → HPF ile soyacağız
+      const raw = e.accelerationIncludingGravity;
+      if (!raw || raw.x === null) return;
+      hamX = raw.x;
+      hamY = raw.y;
+      hamZ = raw.z;
+      kaynakEtiketi = "RAW+HPF";
+    }
+
+    // ── High-Pass Filter ─────────────────────────────────────────
+    // Her iki durumda da uygula; Strateji A'da çıktı zaten ~linAcc olur.
+    const lin = hpfFiltrele({ x: hamX, y: hamY, z: hamZ });
+
+    // ── Noise Gate ───────────────────────────────────────────────
+    const lx = noiseGate(lin.x);
+    const ly = noiseGate(lin.y);
+    const lz = noiseGate(lin.z);
+
+    // ── Magnitude (yön-bağımsız) ─────────────────────────────────
+    const mag = magnitude(lx, ly, lz);
+
+    // Ekranda ham HPF çıktısını göster (yön-bağımsız mag)
+    document.getElementById("ham-x").textContent = lx.toFixed(2);
+    document.getElementById("ham-y").textContent = ly.toFixed(2);
+    document.getElementById("ham-z").textContent = lz.toFixed(2);
 
     // Tampona ekle
-    buffer.push([a.x, a.y, a.z]);
+    buffer.push({ linX: lx, linY: ly, linZ: lz, mag });
 
     if (buffer.length >= WINDOW_SIZE) {
       tahminEt([...buffer]);
       buffer = [];
     }
   };
+
   window.addEventListener("devicemotion", listener, true);
 }
 
+// ════════════════════════════════════════════════════════════════════
+//  KONTROL FONKSİYONLARI
+// ════════════════════════════════════════════════════════════════════
 function izinAlVeBaslat() {
   const ov = document.getElementById("start-overlay");
   ov.classList.add("hidden");
@@ -583,11 +703,14 @@ function yenidenBaslat() {
   mevcutTahmin  = null;
   buffer        = [];
   tahminGecmisi = [];
-  document.getElementById("tc-value").className   = "tc-value idle";
-  document.getElementById("tc-value").textContent = "BEKLENİYOR";
-  document.getElementById("tc-emoji").textContent  = "⏳";
-  document.getElementById("uyari").style.display   = "none";
-  document.getElementById("conf-bar").style.width  = "0%";
+  hpfDurum      = { x:0, y:0, z:0 };
+  hpfBaslatildi = false;
+
+  document.getElementById("tc-value").className    = "tc-value idle";
+  document.getElementById("tc-value").textContent  = "BEKLENİYOR";
+  document.getElementById("tc-emoji").textContent   = "⏳";
+  document.getElementById("uyari").style.display    = "none";
+  document.getElementById("conf-bar").style.width   = "0%";
   document.getElementById("conf-label").textContent = "GÜVEN: –";
   document.querySelectorAll(".akt-card").forEach(k => k.classList.remove("aktif"));
   ["yurume","kosma","ziplama","merdiven","oturma"].forEach(k => {
