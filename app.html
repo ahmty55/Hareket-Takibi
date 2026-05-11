@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>İvmeÖlçer — Canlı Analiz</title>
+  <title>Hareket Takibi — Canlı Analiz</title>
   <script src="model.js?v=999"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
@@ -249,7 +249,7 @@
 
   <!-- TOPBAR -->
   <div class="topbar">
-    <div class="topbar-logo">İvme<span>Ölçer</span></div>
+    <div class="topbar-logo">Hareket<span>Takibi</span></div>
     <a href="index.html" class="topbar-back">← Ana Sayfa</a>
   </div>
 
@@ -326,31 +326,38 @@
 <script>
 // ════════════════════════════════════════════════════════════════════
 //  SINIFLAR — model.py → classes_ sırasıyla BİREBİR eşleşmeli
+//  score() fonksiyonu bu sırayla 5 elemanlı dizi döndürür.
 // ════════════════════════════════════════════════════════════════════
 const SINIFLAR = ["yurume", "kosma", "ziplama", "merdiven", "oturma"];
 
 // ════════════════════════════════════════════════════════════════════
-//  KALIBRASYON PARAMETRELERİ
+//  KALİBRASYON PARAMETRELERİ
 // ════════════════════════════════════════════════════════════════════
 
-// High-Pass Filter alfa: 0'a yakın → daha agresif yerçekimi soyma
-// 0.8 = yaklaşık 50 Hz örnekleme hızında ~1.6 Hz kesim frekansı
+// High-Pass Filter alfa — yerçekimi soyma agresifliği
+// 0.8 ≈ ~1.6 Hz kesim (50 Hz örnekleme hızında)
 const HPF_ALPHA = 0.8;
 
-// Hareketsizlik eşiği — HPF sonrası linear mag bu değerin altındaysa SABİT
-// (yerçekimi çıkarıldıktan sonra küçük değer → hareket yok)
-const STILL_THRESHOLD = 0.15;       // m/s²
+// ── Zero-G Filtresi ────────────────────────────────────────────────
+// Ham magnitude (yerçekimi dahil) bu aralıktaysa → cihaz SABİT
+// Yerçekimi = 9.81 m/s²  |  0.5–1.2g arası = hareketsizlik bölgesi
+// (normalize: g cinsinden değil m/s² cinsinden → 4.9 ile 11.8)
+const ZEROG_MIN = 4.9;    // m/s²  (0.5g)
+const ZEROG_MAX = 11.8;   // m/s²  (1.2g)
 
-// Gürültü bastırma eşiği — bu altındaki küçük titremeleri sıfırla
-const NOISE_GATE = 0.05;            // m/s²
+// ── Linear Magnitude Hareketsizlik Eşiği ─────────────────────────
+// HPF sonrası (yerçekimi çıkarılmış) std sapması bu altındaysa SABİT
+const STILL_STD = 0.18;   // m/s²
 
-// Confidence skoru eşiği — bu altında "Belirsiz" göster
-const CONFIDENCE_THRESHOLD = 0.62;
+// ── Gürültü Kapısı ───────────────────────────────────────────────
+const NOISE_GATE = 0.05;  // m/s²
 
-// Smoothing: son kaç tahmin oylanacak
-const SMOOTH_WINDOW = 5;
+// ── Majority Vote Pencere Boyutu ──────────────────────────────────
+// Son 10 tahmin oylanır, en çok tekrarlayan gösterilir.
+// Anlık titremeler / sahte zıplamalar bu sayede elenecek.
+const SMOOTH_WINDOW = 10;
 
-// Pencere boyutu (sample sayısı)
+// ── Pencere boyutu (örnek sayısı) ────────────────────────────────
 const WINDOW_SIZE  = 50;
 const OTURMA_LIMIT = 600;
 
@@ -428,41 +435,8 @@ function magnitude(x, y, z) {
   return Math.sqrt(x*x + y*y + z*z);
 }
 
-// ── Pencere istatistikleri (magnitude sinyali üzerinden) ─────────
-// data: [{linX, linY, linZ, mag}] dizisi
-// Döner: { meanMag, stdMag, maxMag, meanLinX, meanLinY, meanLinZ }
-function pencereIstatistikleri(data) {
-  const n = data.length;
-  let sumMag=0, sumX=0, sumY=0, sumZ=0;
-  let maxMag = 0;
-
-  for (const d of data) {
-    sumMag += d.mag;
-    sumX   += d.linX;
-    sumY   += d.linY;
-    sumZ   += d.linZ;
-    if (d.mag > maxMag) maxMag = d.mag;
-  }
-  const meanMag = sumMag / n;
-  const meanX   = sumX   / n;
-  const meanY   = sumY   / n;
-  const meanZ   = sumZ   / n;
-
-  // Standart sapma (varyans)
-  let varSum = 0;
-  for (const d of data) varSum += (d.mag - meanMag) ** 2;
-  const stdMag = Math.sqrt(varSum / n);
-
-  return { meanMag, stdMag, maxMag, meanX, meanY, meanZ };
-}
-
-// ── Hareketsizlik tespiti ──────────────────────────────────────────
-// Linear magnitude'un standart sapması düşükse → hareketsiz
-function hareketsizMi(stats) {
-  // stdMag: sinyalin ne kadar dalgalandığını ölçer
-  // Sabit dururken linear acc ~ 0, std da ~ 0
-  return stats.stdMag < STILL_THRESHOLD;
-}
+// ── Pencere istatistikleri (artık tahminEt içinde inline yapılıyor)
+// Bu fonksiyon kaldırıldı — kod tahminEt içinde daha net okunur.
 
 // ── Moving Average / Majority Vote ────────────────────────────────
 function smoothedTahmin(yeniTahmin) {
@@ -477,27 +451,24 @@ function smoothedTahmin(yeniTahmin) {
 }
 
 // ── Confidence bar ────────────────────────────────────────────────
-function updateConfBar(pct) {
-  const bar  = document.getElementById("conf-bar");
-  const lbl  = document.getElementById("conf-label");
-  const p    = Math.round(pct * 100);
+// Artık "Belirsiz" eşiği yok; bar sadece mevcut güveni gösterir.
+// Renk: aktif sınıf yeşil, düşük güven turuncu (bilgi amaçlı).
+function updateConfBar(pct, tahmin) {
+  const bar = document.getElementById("conf-bar");
+  const lbl = document.getElementById("conf-label");
+  const p   = Math.round(pct * 100);
   bar.style.width      = p + "%";
-  bar.style.background = pct >= CONFIDENCE_THRESHOLD ? "var(--green)" : "var(--warn)";
+  // Güven düşükse turuncu (uyarı), yüksekse yeşil — ama UI her zaman tahmin gösterir
+  bar.style.background = pct >= 0.55 ? "var(--green)" : "var(--warn)";
   lbl.textContent      = "GÜVEN: %" + p;
 }
 
 // ── UI güncellemesi ───────────────────────────────────────────────
-function gosterTahmin(tahmin, confidence) {
-  if (mevcutTahmin) {
+// "Belirsiz" durumu kaldırıldı. Her zaman net bir sınıf gösterilir.
+function gosterTahmin(tahmin) {
+  if (mevcutTahmin && mevcutTahmin !== tahmin) {
     const eski = document.getElementById("kart-" + mevcutTahmin);
     if (eski) eski.classList.remove("aktif");
-  }
-
-  if (tahmin === "belirsiz") {
-    document.getElementById("tc-value").className   = "tc-value belirsiz";
-    document.getElementById("tc-value").textContent = "BELİRSİZ";
-    document.getElementById("tc-emoji").textContent  = "🤔";
-    return;
   }
 
   const yeniKart = document.getElementById("kart-" + tahmin);
@@ -526,57 +497,84 @@ function gosterTahmin(tahmin, confidence) {
 //  ANA TAHMİN MOTORU
 // ════════════════════════════════════════════════════════════════════
 function tahminEt(data) {
-  // data: [{linX, linY, linZ, mag}] — HPF uygulanmış, gürültü temizlenmiş
+  // data: [{linX, linY, linZ, mag, rawMag}]
+  //   mag    = HPF sonrası linear magnitude
+  //   rawMag = HPF öncesi ham magnitude (zero-G filtresi için)
 
   try {
-    // 1) Pencere istatistiklerini hesapla
-    const stats = pencereIstatistikleri(data);
+    const n = data.length;
 
-    // Debug göster
-    document.getElementById("dbg-mag").textContent   = stats.meanMag.toFixed(3);
-    document.getElementById("dbg-delta").textContent = stats.stdMag.toFixed(3);
+    // ── 1) Ham magnitude ortalaması (zero-G filtresi için) ────────
+    let sumRaw = 0;
+    for (const d of data) sumRaw += d.rawMag;
+    const meanRawMag = sumRaw / n;
 
-    // 2) Hareketsizlik kontrolü (yön-bağımsız: magnitude STD kullanılıyor)
-    if (hareketsizMi(stats)) {
-      document.getElementById("dbg-state").textContent = "SABİT";
-      updateConfBar(1.0);
-      gosterTahmin(smoothedTahmin("oturma"), 1.0);
+    // ── 2) Zero-G Filtresi ────────────────────────────────────────
+    // Ham magnitude yerçekimi bölgesindeyse → cihaz sabit, modeli bypass et
+    // Bu filtre yön değişiminden de korunur: hangi yönde olursa olsun
+    // yerçekimi ~9.81 m/s² magnitude üretir.
+    if (meanRawMag >= ZEROG_MIN && meanRawMag <= ZEROG_MAX) {
+      document.getElementById("dbg-state").textContent = "0G-SABİT";
+      document.getElementById("dbg-mag").textContent   = meanRawMag.toFixed(2);
+      document.getElementById("dbg-delta").textContent = "–";
+      updateConfBar(1.0, "oturma");
+      gosterTahmin(smoothedTahmin("oturma"));
+      return;
+    }
+
+    // ── 3) Linear magnitude istatistikleri ───────────────────────
+    let sumLin = 0, maxLin = 0;
+    for (const d of data) {
+      sumLin += d.mag;
+      if (d.mag > maxLin) maxLin = d.mag;
+    }
+    const meanLinMag = sumLin / n;
+
+    let varSum = 0;
+    for (const d of data) varSum += (d.mag - meanLinMag) ** 2;
+    const stdLinMag = Math.sqrt(varSum / n);
+
+    document.getElementById("dbg-mag").textContent   = meanLinMag.toFixed(3);
+    document.getElementById("dbg-delta").textContent = stdLinMag.toFixed(3);
+
+    // ── 4) STD tabanlı hareketsizlik kontrolü ────────────────────
+    // HPF sonrası std sapma düşükse cihaz sabit
+    if (stdLinMag < STILL_STD) {
+      document.getElementById("dbg-state").textContent = "STD-SABİT";
+      updateConfBar(1.0, "oturma");
+      gosterTahmin(smoothedTahmin("oturma"));
       return;
     }
 
     document.getElementById("dbg-state").textContent = "AKTİF";
 
-    // 3) Model girdisi oluştur
-    // model.js 4 özellik bekliyor: [meanX, meanY, meanZ, meanMag]
-    // meanX/Y/Z: ortalama linear ivme (HPF sonrası, yön bilgisi taşır ama az)
-    // meanMag   : yön-bağımsız toplam ivme büyüklüğü — en kritik özellik
+    // ── 5) Model Girdisi: SADECE MAGNİTÜD ────────────────────────
+    // Yön-bağımsızlık için X, Y, Z ayrı ayrı değil;
+    // tek skaler olarak meanLinMag + stdLinMag + maxLinMag kullanılır.
+    // model.js 4 özellik bekliyorsa: [mean, std, max, mean] (tekrar)
+    // Eğer daha az bekliyorsa fazlası görmezden gelinir.
     const input = [
-      stats.meanX,    // input[0]
-      stats.meanY,    // input[1]
-      stats.meanZ,    // input[2]
-      stats.meanMag   // input[3] — magnitude, yön-bağımsız
+      meanLinMag,   // input[0] — ortalama linear magnitude
+      stdLinMag,    // input[1] — varyasyon (hareket yoğunluğu)
+      maxLin,       // input[2] — tepe ivme
+      meanLinMag    // input[3] — model[3] için fallback (mean tekrar)
     ];
 
     const skorlar = score(input);
 
-    // 4) ArgMax + Confidence
+    // ── 6) ArgMax (Belirsiz YOK — her zaman en yüksek sınıf) ─────
     let maxIdx = 0;
     for (let i = 1; i < skorlar.length; i++)
       if (skorlar[i] > skorlar[maxIdx]) maxIdx = i;
 
-    const confidence = skorlar[maxIdx];
-    updateConfBar(confidence);
-
-    // 5) Düşük güven → Belirsiz
-    if (confidence < CONFIDENCE_THRESHOLD) {
-      gosterTahmin("belirsiz", confidence);
-      return;
-    }
-
-    // 6) Majority vote smoothing
-    const hammTahmin = SINIFLAR[maxIdx];
+    const confidence  = skorlar[maxIdx];
+    const hammTahmin  = SINIFLAR[maxIdx];
     if (!hammTahmin) return;
-    gosterTahmin(smoothedTahmin(hammTahmin), confidence);
+
+    updateConfBar(confidence, hammTahmin);
+
+    // ── 7) Majority Vote Smoothing (10 tahmin) ────────────────────
+    gosterTahmin(smoothedTahmin(hammTahmin));
 
   } catch(e) { log("Tahmin hatası: " + e.message); }
 }
@@ -643,15 +641,17 @@ function baslat() {
     const lz = noiseGate(lin.z);
 
     // ── Magnitude (yön-bağımsız) ─────────────────────────────────
-    const mag = magnitude(lx, ly, lz);
+    const mag    = magnitude(lx, ly, lz);
+    // Ham magnitude (yerçekimi dahil) — zero-G filtresi bu değeri kullanır
+    const rawMag = magnitude(hamX, hamY, hamZ);
 
-    // Ekranda ham HPF çıktısını göster (yön-bağımsız mag)
+    // Ekranda HPF sonrası linear ivmeyi göster
     document.getElementById("ham-x").textContent = lx.toFixed(2);
     document.getElementById("ham-y").textContent = ly.toFixed(2);
     document.getElementById("ham-z").textContent = lz.toFixed(2);
 
-    // Tampona ekle
-    buffer.push({ linX: lx, linY: ly, linZ: lz, mag });
+    // Tampona ekle — hem filtered hem raw magnitude saklanıyor
+    buffer.push({ linX: lx, linY: ly, linZ: lz, mag, rawMag });
 
     if (buffer.length >= WINDOW_SIZE) {
       tahminEt([...buffer]);
