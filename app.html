@@ -330,45 +330,31 @@
 const SINIFLAR = ["yurume", "kosma", "ziplama", "merdiven", "oturma"];
 
 // ════════════════════════════════════════════════════════════════════
-//  KALİBRASYON PARAMETRELERİ
+//  KALİBRASYON PARAMETRELERİ - (Gevşetilmiş Ayarlar)
 // ════════════════════════════════════════════════════════════════════
 
-// High-Pass Filter (yerçekimi soyma)
-const HPF_ALPHA = 0.8;
+// High-Pass Filter (Yerçekimini daha hassas ayırır)
+const HPF_ALPHA = 0.95; // 0.8 çok sertti, hareketi de siliyordu. 0.95 daha iyi.
 
-// ── [YENİ] Low-Pass Filter ────────────────────────────────────────
-// Her sensör sampleını EMA ile düzleştir. Ani gürültü sıçramalarını
-// yumuşatır. Yüksek alfa = daha yavaş tepki (daha pürüzsüz).
-// Önerilen aralık: 0.2–0.4 (daha düşük = daha fazla düzleştirme)
-const LPF_ALPHA = 0.25;
+// Low-Pass Filter (Gürültüyü çok az yumuşatalım)
+const LPF_ALPHA = 0.5; // 0.25 hareketi çok geciktirir.
 
-// Zero-G Filtresi: Ham magnitude bu aralıktaysa → cihaz sabit
-const ZEROG_MIN = 4.9;    // m/s²  (0.5g)
-const ZEROG_MAX = 11.8;   // m/s²  (1.2g)
+// Zero-G Filtresi: Bu aralık çok genişti (4.9-11.8). Daraltıyoruz.
+// Sadece telefon gerçekten hareketsizken (yerçekimine çok yakınken) çalışsın.
+const ZEROG_MIN = 9.4;   // 0.96g
+const ZEROG_MAX = 10.2;  // 1.04g
 
-// ── [YENİ] Statik Durum Kilidi ────────────────────────────────────
-// HPF sonrası linear magnitude bu eşiğin altında kalırsa
-// model tamamen bypass edilir, doğrudan "oturma" kilitlenir.
-// Telefon elde/masada dururken sahte tahminlerin önüne geçer.
-const IDLE_LOCK_THRESHOLD = 0.20;  // m/s²
+// Statik Durum Kilidi: Bu değer 0.20 iken yürümeyi bile 'oturma' sanabilir.
+const IDLE_LOCK_THRESHOLD = 0.08; // Daha hassas yaptık.
 
-// STD tabanlı hareketsizlik (pencere üzerinde hesaplanır)
-const STILL_STD = 0.18;   // m/s²
+// Hareketsizlik Standard Sapması
+const STILL_STD = 0.05;   // Çok daha hassas.
 
-// Gürültü Kapısı
-const NOISE_GATE = 0.05;  // m/s²
+// Histerezis (Tahmin Gecikmesi): 8 frame çok uzun, tepki süresi yavaş kalır.
+const HYSTERESIS_FRAMES = 3; 
 
-// ── [YENİ] Histerezis (Tahmin Gecikmesi) ─────────────────────────
-// Yeni bir tahmin ancak art arda HYSTERESIS_FRAMES kez aynı sınıfı
-// döndürürse ekranda gösterilir. Saniyede 10 değişimi engeller.
-const HYSTERESIS_FRAMES = 8;
-
-// ── [YENİ] Merdiven Z-Axis Baskılama ─────────────────────────────
-// Merdiven tahmininin onaylanabilmesi için Z ekseninde ritmik
-// varyasyon (standart sapma) bu eşiğin üzerinde olmalı.
-// Sabit dururken Z-std düşük kalır → merdiven skoru sıfırlanır.
-const STAIR_Z_STD_MIN = 0.40;  // m/s²
-
+// Merdiven Z-Axis Baskılama: Bunu da biraz gevşetelim.
+const STAIR_Z_STD_MIN = 0.15;
 // Majority Vote Pencere Boyutu
 const SMOOTH_WINDOW = 10;
 
