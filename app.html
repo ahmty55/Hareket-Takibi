@@ -325,460 +325,170 @@
 
 <script>
 // ════════════════════════════════════════════════════════════════════
-//  SINIFLAR — model.py → classes_ sırasıyla BİREBİR eşleşmeli
+//  AYARLAR VE DEĞİŞKENLER
 // ════════════════════════════════════════════════════════════════════
 const SINIFLAR = ["yurume", "kosma", "ziplama", "merdiven", "oturma"];
+const META = {
+    yurume: { emoji: "🚶", label: "YÜRÜME" },
+    kosma: { emoji: "🏃", label: "KOŞMA" },
+    ziplama: { emoji: "⬆️", label: "ZIPLAMA" },
+    merdiven: { emoji: "🪜", label: "MERDİVEN" },
+    oturma: { emoji: "🪑", label: "OTURMA" },
+};
 
-// ════════════════════════════════════════════════════════════════════
-//  KALİBRASYON PARAMETRELERİ - (Gevşetilmiş Ayarlar)
-// ════════════════════════════════════════════════════════════════════
+let buffer = [];
+let aktif = false;
+let listener = null;
+let mevcutTahmin = null;
+let oturmaSayac = 0;
+let sureler = { yurume: 0, kosma: 0, ziplama: 0, merdiven: 0, oturma: 0 };
+let tahminGecmisi = [];
 
-// High-Pass Filter (Yerçekimini daha hassas ayırır)
-const HPF_ALPHA = 0.95; // 0.8 çok sertti, hareketi de siliyordu. 0.95 daha iyi.
-
-// Low-Pass Filter (Gürültüyü çok az yumuşatalım)
-const LPF_ALPHA = 0.5; // 0.25 hareketi çok geciktirir.
-
-// Zero-G Filtresi: Bu aralık çok genişti (4.9-11.8). Daraltıyoruz.
-// Sadece telefon gerçekten hareketsizken (yerçekimine çok yakınken) çalışsın.
-const ZEROG_MIN = 9.4;   // 0.96g
-const ZEROG_MAX = 10.2;  // 1.04g
-
-// Statik Durum Kilidi: Bu değer 0.20 iken yürümeyi bile 'oturma' sanabilir.
-const IDLE_LOCK_THRESHOLD = 0.08; // Daha hassas yaptık.
-
-// Hareketsizlik Standard Sapması
-const STILL_STD = 0.05;   // Çok daha hassas.
-
-const NOISE_GATE = 0.02; // Çok küçük titreşimleri yok saymak için eşik değer
-
-// Histerezis (Tahmin Gecikmesi): 8 frame çok uzun, tepki süresi yavaş kalır.
-const HYSTERESIS_FRAMES = 3; 
-
-// Merdiven Z-Axis Baskılama: Bunu da biraz gevşetelim.
-const STAIR_Z_STD_MIN = 0.15;
-// Majority Vote Pencere Boyutu
+let histerezisAday = null;
+let histerezisKarsilasma = 0;
+const HYSTERESIS_FRAMES = 3;
 const SMOOTH_WINDOW = 10;
-
-// Pencere boyutu (örnek sayısı)
-const WINDOW_SIZE  = 50;
+const WINDOW_SIZE = 50;
 const OTURMA_LIMIT = 600;
 
 // ════════════════════════════════════════════════════════════════════
-//  DURUM DEĞİŞKENLERİ
+//  TAHMİN MOTORU (HATASIZ VERSİYON)
 // ════════════════════════════════════════════════════════════════════
-const META = {
-  yurume:   { emoji:"🚶", label:"YÜRÜME"   },
-  kosma:    { emoji:"🏃", label:"KOŞMA"    },
-  ziplama:  { emoji:"⬆️", label:"ZIPLAMA"  },
-  merdiven: { emoji:"🪜", label:"MERDİVEN" },
-  oturma:   { emoji:"🪑", label:"OTURMA"   },
-};
+function tahminEt(data) {
+    try {
+        if (!data || data.length === 0) return;
 
-let buffer        = [];
-let aktif         = false;
-let listener      = null;
-let mevcutTahmin  = null;
-let oturmaSayac   = 0;
-let sureler       = { yurume:0, kosma:0, ziplama:0, merdiven:0, oturma:0 };
-let tahminGecmisi = [];
+        const n = data.length;
+        const magnitudes = data.map(d => d.mag);
 
-// High-Pass Filter durumu
-let hpfDurum      = { x: 0, y: 0, z: 0 };
-let hpfBaslatildi = false;
+        // 1. İstatistikleri Hesapla
+        const mean = magnitudes.reduce((a, b) => a + b, 0) / n;
+        const max = Math.max(...magnitudes);
+        const min = Math.min(...magnitudes);
+        const range = max - min;
+        const std = Math.sqrt(magnitudes.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b, 0) / n);
+        const sorted = [...magnitudes].sort((a, b) => a - b);
+        const median = sorted[Math.floor(n / 2)];
 
-// [YENİ] Low-Pass Filter durumu — her eksen için EMA değeri
-let lpfDurum      = { x: 0, y: 0, z: 0 };
-let lpfBaslatildi = false;
+        // 2. Sabit Durum Koruması (Merdiven Engelleme)
+        if (std < 0.08) {
+            document.getElementById("dbg-state").textContent = "SABIT";
+            gosterTahmin(histerezisFiltrele(smoothedTahmin("oturma")));
+            return; // İşte bu return artık fonksiyon içinde olduğu için hata vermez
+        }
 
-// [YENİ] Histerezis durumu
-let histerezisAday     = null;  // Şu an sınama altındaki sınıf
-let histerezisKarsilasma = 0;   // Üst üste kaç kez aynı sınıf geldi
+        // 3. Model Girişi (Python sırasıyla: mean, std, max, min, range, median)
+        const input = [mean, std, max, min, range, median];
+
+        if (typeof score === "function") {
+            const skorlar = score(input);
+            let maxIdx = 0;
+            for (let i = 1; i < skorlar.length; i++) {
+                if (skorlar[i] > skorlar[maxIdx]) maxIdx = i;
+            }
+
+            const hammTahmin = SINIFLAR[maxIdx];
+            updateConfBar(skorlar[maxIdx], hammTahmin);
+            const sonuc = histerezisFiltrele(smoothedTahmin(hammTahmin));
+            if (sonuc) gosterTahmin(sonuc);
+        }
+    } catch (e) {
+        console.error("Tahmin Hatası:", e);
+    }
+}
 
 // ════════════════════════════════════════════════════════════════════
 //  YARDIMCI FONKSİYONLAR
 // ════════════════════════════════════════════════════════════════════
-
-function log(m) { document.getElementById("durum").textContent = m; }
-function fmt(s) { return s < 60 ? s+"s" : Math.floor(s/60)+"dk "+(s%60)+"s"; }
-
-// ── [YENİ] Low-Pass Filter (EMA) ─────────────────────────────────
-// Ham sensör verisini yumuşatır. Ani sıçrama ve gürültüleri bastırır.
-// Düşük LPF_ALPHA → daha fazla düzleştirme, daha yavaş tepki.
-// lpf[t] = α * ham[t] + (1-α) * lpf[t-1]
-function lpfFiltrele(ham) {
-  if (!lpfBaslatildi) {
-    lpfDurum.x = ham.x;
-    lpfDurum.y = ham.y;
-    lpfDurum.z = ham.z;
-    lpfBaslatildi = true;
-  }
-  lpfDurum.x = LPF_ALPHA * ham.x + (1 - LPF_ALPHA) * lpfDurum.x;
-  lpfDurum.y = LPF_ALPHA * ham.y + (1 - LPF_ALPHA) * lpfDurum.y;
-  lpfDurum.z = LPF_ALPHA * ham.z + (1 - LPF_ALPHA) * lpfDurum.z;
-  return { x: lpfDurum.x, y: lpfDurum.y, z: lpfDurum.z };
-}
-
-// ── High-Pass Filter ─────────────────────────────────────────────
-// Yerçekimini soy: gravTahmin[t] = α*grav[t-1] + (1-α)*ham[t]
-// linear = ham - gravTahmin
-function hpfFiltrele(ham) {
-  if (!hpfBaslatildi) {
-    hpfDurum.x = ham.x;
-    hpfDurum.y = ham.y;
-    hpfDurum.z = ham.z;
-    hpfBaslatildi = true;
-  }
-  hpfDurum.x = HPF_ALPHA * hpfDurum.x + (1 - HPF_ALPHA) * ham.x;
-  hpfDurum.y = HPF_ALPHA * hpfDurum.y + (1 - HPF_ALPHA) * ham.y;
-  hpfDurum.z = HPF_ALPHA * hpfDurum.z + (1 - HPF_ALPHA) * ham.z;
-  return {
-    x: ham.x - hpfDurum.x,
-    y: ham.y - hpfDurum.y,
-    z: ham.z - hpfDurum.z,
-  };
-}
-
-// ── Noise Gate ────────────────────────────────────────────────────
-function noiseGate(v) {
-  return Math.abs(v) < NOISE_GATE ? 0 : v;
-}
-
-// ── Magnitude ─────────────────────────────────────────────────────
-function magnitude(x, y, z) {
-  return Math.sqrt(x*x + y*y + z*z);
-}
-
-// ── Majority Vote ─────────────────────────────────────────────────
 function smoothedTahmin(yeniTahmin) {
-  tahminGecmisi.push(yeniTahmin);
-  if (tahminGecmisi.length > SMOOTH_WINDOW) tahminGecmisi.shift();
-  const sayac = {};
-  for (const t of tahminGecmisi) sayac[t] = (sayac[t] || 0) + 1;
-  let maxK = tahminGecmisi[0], maxV = 0;
-  for (const [k,v] of Object.entries(sayac)) { if (v > maxV) { maxV = v; maxK = k; } }
-  return maxK;
+    tahminGecmisi.push(yeniTahmin);
+    if (tahminGecmisi.length > SMOOTH_WINDOW) tahminGecmisi.shift();
+    const sayac = {};
+    for (const t of tahminGecmisi) sayac[t] = (sayac[t] || 0) + 1;
+    let maxK = tahminGecmisi[0], maxV = 0;
+    for (const [k, v] of Object.entries(sayac)) { if (v > maxV) { maxV = v; maxK = k; } }
+    return maxK;
 }
 
-// ── [YENİ] Histerezis Filtresi ────────────────────────────────────
-// Aday tahmin HYSTERESIS_FRAMES kez üst üste gelmeden ekrana yansımaz.
-// Bu sayede her saniye farklı bir sınıf gösterilmez.
 function histerezisFiltrele(yeniTahmin) {
-  if (yeniTahmin === histerezisAday) {
-    histerezisKarsilasma++;
-  } else {
-    // Farklı sınıf geldi → sayacı sıfırla, yeni adayı belirle
-    histerezisAday       = yeniTahmin;
-    histerezisKarsilasma = 1;
-  }
-  // Eşiğe ulaştıysa ekrandaki tahmin değişebilir,
-  // yoksa mevcut ekran tahmini korunur.
-  if (histerezisKarsilasma >= HYSTERESIS_FRAMES) {
-    return yeniTahmin;
-  }
-  // Henüz eşiğe ulaşılmadı → mevcut onaylı tahmini koru
-  return mevcutTahmin;
-}
-
-// ── Confidence bar ────────────────────────────────────────────────
-function updateConfBar(pct, tahmin) {
-  const bar = document.getElementById("conf-bar");
-  const lbl = document.getElementById("conf-label");
-  const p   = Math.round(pct * 100);
-  bar.style.width      = p + "%";
-  bar.style.background = pct >= 0.55 ? "var(--green)" : "var(--warn)";
-  lbl.textContent      = "GÜVEN: %" + p;
-}
-
-// ── UI Güncelleme ─────────────────────────────────────────────────
-function gosterTahmin(tahmin) {
-  if (!tahmin) return;  // Histerezis henüz onaylamadı, değiştirme
-
-  if (mevcutTahmin && mevcutTahmin !== tahmin) {
-    const eski = document.getElementById("kart-" + mevcutTahmin);
-    if (eski) eski.classList.remove("aktif");
-  }
-
-  const yeniKart = document.getElementById("kart-" + tahmin);
-  if (yeniKart) yeniKart.classList.add("aktif");
-
-  const m = META[tahmin] || {};
-  document.getElementById("tc-value").className   = "tc-value";
-  document.getElementById("tc-value").textContent = m.label || tahmin.toUpperCase();
-  document.getElementById("tc-emoji").textContent  = m.emoji || "❓";
-  mevcutTahmin = tahmin;
-
-  sureler[tahmin] = (sureler[tahmin] || 0) + 1;
-  const tEl = document.getElementById("t-" + tahmin);
-  if (tEl) tEl.textContent = fmt(sureler[tahmin]);
-
-  if (tahmin === "oturma") {
-    oturmaSayac++;
-    if (oturmaSayac >= OTURMA_LIMIT) document.getElementById("uyari").style.display = "block";
-  } else {
-    oturmaSayac = 0;
-    document.getElementById("uyari").style.display = "none";
-  }
-}
-
-// ════════════════════════════════════════════════════════════════════
-//  ANA TAHMİN MOTORU
-// ════════════════════════════════════════════════════════════════════
-function tahminEt(data) {
-  try {
-    const n = data.length;
-    const magnitudes = data.map(d => d.mag); // Linear Magnitude listesi
-
-    // 1. İstatistikleri Hesapla (Python sırasıyla AYNI olmalı)
-    const mean = magnitudes.reduce((a, b) => a + b, 0) / n;
-    const max = Math.max(...magnitudes);
-    const min = Math.min(...magnitudes);
-    const range = max - min;
-    const std = Math.sqrt(magnitudes.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n);
-    
-    const sorted = [...magnitudes].sort((a, b) => a - b);
-    const median = sorted[Math.floor(n / 2)];
-
-    // 2. Yeni Model Girişi (6 ÖZELLİK)
-    const input = [ mean, std, max, min, range, median ];
-
-    // 3. Sabit Durum Koruması (Merdiven hatasını bitiren yer)
-    if (std < 0.08) { // Telefon masadaysa modeli hiç yorma
-       gosterTahmin(histerezisFiltrele(smoothedTahmin("oturma")));
-       return;
-    }
-
-    // 4. Model Tahmini
-    const skorlar = score(input); 
-    let maxIdx = 0;
-    for (let i = 1; i < skorlar.length; i++) {
-      if (skorlar[i] > skorlar[maxIdx]) maxIdx = i;
-    }
-
-    const hammTahmin = SINIFLAR[maxIdx];
-    updateConfBar(skorlar[maxIdx], hammTahmin);
-    gosterTahmin(histerezisFiltrele(smoothedTahmin(hammTahmin)));
-
-  } catch(e) { console.error("Tahmin hatası:", e); }
-}
-    // ── 3) Linear magnitude istatistikleri ───────────────────────
-    let sumLin = 0, maxLin = 0;
-    for (const d of data) {
-      sumLin += d.mag;
-      if (d.mag > maxLin) maxLin = d.mag;
-    }
-    const meanLinMag = sumLin / n;
-
-    let varSum = 0;
-    for (const d of data) varSum += (d.mag - meanLinMag) ** 2;
-    const stdLinMag = Math.sqrt(varSum / n);
-
-    document.getElementById("dbg-mag").textContent   = meanLinMag.toFixed(3);
-    document.getElementById("dbg-delta").textContent = stdLinMag.toFixed(3);
-
-    // ── 4) [YENİ] Statik Durum Kilidi ────────────────────────────
-    // Ortalama linear magnitude eşiğin altındaysa → telefon sabit.
-    // Model ne derse desin "oturma" kilitle. Bu kilitlenme sayesinde
-    // masada duran telefon hiçbir zaman merdiven/yürüme demez.
-    if (meanLinMag < IDLE_LOCK_THRESHOLD) {
-      document.getElementById("dbg-state").textContent = "KILIT-SABİT";
-      updateConfBar(1.0, "oturma");
-      gosterTahmin(histerezisFiltrele(smoothedTahmin("oturma")));
-      return;
-    }
-
-    // ── 5) STD tabanlı hareketsizlik kontrolü ────────────────────
-    if (stdLinMag < STILL_STD) {
-      document.getElementById("dbg-state").textContent = "STD-SABİT";
-      updateConfBar(1.0, "oturma");
-      gosterTahmin(histerezisFiltrele(smoothedTahmin("oturma")));
-      return;
-    }
-
-    document.getElementById("dbg-state").textContent = "AKTİF";
-
-    // ── 6) [YENİ] Z-Axis Standart Sapması ────────────────────────
-    // Merdiven çıkarma için Z ekseninde ritmik dikey değişim lazım.
-    // Önce Z değerlerinin std sapmasını hesapla.
-    let sumZ = 0;
-    for (const d of data) sumZ += d.linZ;
-    const meanZ = sumZ / n;
-    let varZ = 0;
-    for (const d of data) varZ += (d.linZ - meanZ) ** 2;
-    const stdZ = Math.sqrt(varZ / n);
-
-    // ── 7) Model Girdisi ──────────────────────────────────────────
-    const input = [
-      meanLinMag,
-      stdLinMag,
-      maxLin,
-      meanLinMag
-    ];
-
-    const skorlar = score(input);
-
-    // ── 8) [YENİ] Merdiven Z-Axis Baskılama ──────────────────────
-    // Dikey (Z) varyasyon ritmik eşiğin altındaysa "merdiven" skorunu
-    // sıfırla. Sabit veya yatay hareketlerde yanlış merdiven engellenir.
-    const merdivenIdx = SINIFLAR.indexOf("merdiven");
-    if (merdivenIdx !== -1 && stdZ < STAIR_Z_STD_MIN) {
-      skorlar[merdivenIdx] = 0;
-    }
-
-    // ── 9) ArgMax ─────────────────────────────────────────────────
-    let maxIdx = 0;
-    for (let i = 1; i < skorlar.length; i++)
-      if (skorlar[i] > skorlar[maxIdx]) maxIdx = i;
-
-    const confidence  = skorlar[maxIdx];
-    const hammTahmin  = SINIFLAR[maxIdx];
-    if (!hammTahmin) return;
-
-    updateConfBar(confidence, hammTahmin);
-
-    // ── 10) Majority Vote → Histerezis → Göster ──────────────────
-    const smoothed   = smoothedTahmin(hammTahmin);
-    const onayliTahmin = histerezisFiltrele(smoothed);
-    gosterTahmin(onayliTahmin);
-
-  } catch(e) { log("Tahmin hatası: " + e.message); }
-}
-
-// ════════════════════════════════════════════════════════════════════
-//  SENSÖR KATMANI
-// ════════════════════════════════════════════════════════════════════
-function baslat() {
-  if (typeof score === "undefined") { log("model.js yüklenemedi!"); return; }
-  aktif = true;
-  buffer = [];
-  hpfDurum = { x:0, y:0, z:0 };
-  hpfBaslatildi = false;
-  lpfDurum = { x:0, y:0, z:0 };
-  lpfBaslatildi = false;
-  histerezisAday       = null;
-  histerezisKarsilasma = 0;
-
-  document.getElementById("status-dot").classList.add("active");
-  log("Sensörler aktif...");
-  document.getElementById("btn-durdur").style.display  = "flex";
-  document.getElementById("btn-devam").style.display   = "none";
-  document.getElementById("btn-yeniden").style.display = "none";
-
-  listener = (e) => {
-    if (!aktif) return;
-
-    let hamX, hamY, hamZ;
-
-    const linAcc = e.acceleration;
-    if (linAcc && linAcc.x !== null && linAcc.x !== undefined && linAcc.x !== 0) {
-      hamX = linAcc.x;
-      hamY = linAcc.y;
-      hamZ = linAcc.z;
+    if (yeniTahmin === histerezisAday) {
+        histerezisKarsilasma++;
     } else {
-      const raw = e.accelerationIncludingGravity;
-      if (!raw || raw.x === null) return;
-      hamX = raw.x;
-      hamY = raw.y;
-      hamZ = raw.z;
+        histerezisAday = yeniTahmin;
+        histerezisKarsilasma = 1;
+    }
+    if (histerezisKarsilasma >= HYSTERESIS_FRAMES) return yeniTahmin;
+    return mevcutTahmin;
+}
+
+function gosterTahmin(tahmin) {
+    if (!tahmin || mevcutTahmin === tahmin) {
+        // Zamanı yine de sayalım
+        if(tahmin) {
+            sureler[tahmin]++;
+            const tEl = document.getElementById("t-" + tahmin);
+            if (tEl) tEl.textContent = Math.floor(sureler[tahmin]/2) + "s";
+        }
+        return;
     }
 
-    // ── [YENİ] Adım 1: Low-Pass Filter ───────────────────────────
-    // Ham sensör verisini önce LPF ile düzleştir.
-    // Mikro titremeleri ve anlık sıçramaları bastırır.
-    const lpf = lpfFiltrele({ x: hamX, y: hamY, z: hamZ });
+    document.querySelectorAll(".akt-card").forEach(k => k.classList.remove("aktif"));
+    const yeniKart = document.getElementById("kart-" + tahmin);
+    if (yeniKart) yeniKart.classList.add("aktif");
 
-    // ── Adım 2: High-Pass Filter (yerçekimi soyma) ────────────────
-    // LPF çıktısını HPF'den geçir → düzleştirilmiş linear ivme
-    const lin = hpfFiltrele({ x: lpf.x, y: lpf.y, z: lpf.z });
+    const m = META[tahmin] || {};
+    document.getElementById("tc-value").className = "tc-value";
+    document.getElementById("tc-value").textContent = m.label || tahmin.toUpperCase();
+    document.getElementById("tc-emoji").textContent = m.emoji || "❓";
+    mevcutTahmin = tahmin;
+}
 
-    // ── Adım 3: Noise Gate ────────────────────────────────────────
-    const lx = noiseGate(lin.x);
-    const ly = noiseGate(lin.y);
-    const lz = noiseGate(lin.z);
-
-    // ── Magnitude ─────────────────────────────────────────────────
-    const mag    = magnitude(lx, ly, lz);
-    // rawMag: LPF uygulanmış ama HPF uygulanmamış magnitude
-    // (zero-G filtresi yerçekimini görmek ister)
-    const rawMag = magnitude(lpf.x, lpf.y, lpf.z);
-
-    // Ekrana LPF+HPF sonrası değerleri yaz
-    document.getElementById("ham-x").textContent = lx.toFixed(2);
-    document.getElementById("ham-y").textContent = ly.toFixed(2);
-    document.getElementById("ham-z").textContent = lz.toFixed(2);
-
-    buffer.push({ linX: lx, linY: ly, linZ: lz, mag, rawMag });
-
-    if (buffer.length >= WINDOW_SIZE) {
-      tahminEt([...buffer]);
-      buffer = [];
-    }
-  };
-
-  window.addEventListener("devicemotion", listener, true);
+function updateConfBar(pct, tahmin) {
+    const bar = document.getElementById("conf-bar");
+    const lbl = document.getElementById("conf-label");
+    const p = Math.round(pct * 100);
+    bar.style.width = p + "%";
+    lbl.textContent = "GÜVEN: %" + p;
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  KONTROL FONKSİYONLARI
+//  SENSÖR VE BAŞLATMA
 // ════════════════════════════════════════════════════════════════════
 function izinAlVeBaslat() {
-  const ov = document.getElementById("start-overlay");
-  ov.classList.add("hidden");
-  setTimeout(() => ov.style.display = "none", 400);
-
-  if (typeof DeviceMotionEvent !== "undefined" &&
-      typeof DeviceMotionEvent.requestPermission === "function") {
-    DeviceMotionEvent.requestPermission()
-      .then(s => s === "granted" ? baslat() : log("İzin verilmedi!"))
-      .catch(e => log("Hata: " + e));
-  } else { baslat(); }
+    const ov = document.getElementById("start-overlay");
+    ov.classList.add("hidden");
+    
+    if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+        DeviceMotionEvent.requestPermission()
+            .then(s => s === "granted" ? baslat() : alert("İzin verilmedi!"))
+            .catch(e => alert("Hata: " + e));
+    } else {
+        baslat();
+    }
 }
 
-function durdur() {
-  aktif = false;
-  document.getElementById("status-dot").classList.remove("active");
-  log("Durduruldu.");
-  document.getElementById("btn-durdur").style.display  = "none";
-  document.getElementById("btn-devam").style.display   = "flex";
-  document.getElementById("btn-yeniden").style.display = "flex";
-}
+function baslat() {
+    aktif = true;
+    window.addEventListener("devicemotion", (e) => {
+        if (!aktif) return;
+        const acc = e.accelerationIncludingGravity || e.acceleration;
+        if (!acc) return;
 
-function devamEt() {
-  aktif = true;
-  document.getElementById("status-dot").classList.add("active");
-  log("Sensörler aktif...");
-  document.getElementById("btn-durdur").style.display  = "flex";
-  document.getElementById("btn-devam").style.display   = "none";
-  document.getElementById("btn-yeniden").style.display = "flex";
-}
+        const mag = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
+        
+        document.getElementById("ham-x").textContent = acc.x.toFixed(2);
+        document.getElementById("ham-y").textContent = acc.y.toFixed(2);
+        document.getElementById("ham-z").textContent = acc.z.toFixed(2);
 
-function yenidenBaslat() {
-  if (listener) window.removeEventListener("devicemotion", listener, true);
-  sureler            = {yurume:0, kosma:0, ziplama:0, merdiven:0, oturma:0};
-  oturmaSayac        = 0;
-  mevcutTahmin       = null;
-  buffer             = [];
-  tahminGecmisi      = [];
-  hpfDurum           = { x:0, y:0, z:0 };
-  hpfBaslatildi      = false;
-  lpfDurum           = { x:0, y:0, z:0 };
-  lpfBaslatildi      = false;
-  histerezisAday     = null;
-  histerezisKarsilasma = 0;
+        buffer.push({ mag: mag });
 
-  document.getElementById("tc-value").className    = "tc-value idle";
-  document.getElementById("tc-value").textContent  = "BEKLENİYOR";
-  document.getElementById("tc-emoji").textContent   = "⏳";
-  document.getElementById("uyari").style.display    = "none";
-  document.getElementById("conf-bar").style.width   = "0%";
-  document.getElementById("conf-label").textContent = "GÜVEN: –";
-  document.querySelectorAll(".akt-card").forEach(k => k.classList.remove("aktif"));
-  ["yurume","kosma","ziplama","merdiven","oturma"].forEach(k => {
-    const el = document.getElementById("t-"+k); if(el) el.textContent = "0s";
-  });
-  ["ham-x","ham-y","ham-z"].forEach(id => document.getElementById(id).textContent = "–");
-  ["dbg-mag","dbg-delta","dbg-state"].forEach(id => document.getElementById(id).textContent = "–");
-  baslat();
+        if (buffer.length >= WINDOW_SIZE) {
+            tahminEt([...buffer]);
+            buffer = [];
+        }
+    }, true);
+    document.getElementById("status-dot").classList.add("active");
+    document.getElementById("durum").textContent = "SİSTEM AKTİF";
 }
 </script>
 </body>
