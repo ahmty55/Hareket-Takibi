@@ -366,7 +366,7 @@ function tahminEt(data) {
         const n = data.length;
         const magnitudes = data.map(d => d.mag);
 
-        // 1. İstatistikler
+        // 1. İstatistikleri Hesapla
         const mean = magnitudes.reduce((a, b) => a + b, 0) / n;
         const max = Math.max(...magnitudes);
         const min = Math.min(...magnitudes);
@@ -375,37 +375,65 @@ function tahminEt(data) {
         const sorted = [...magnitudes].sort((a, b) => a - b);
         const median = sorted[Math.floor(n / 2)];
 
-        // Debug değerlerini ekrana bas (STD takibi için)
+        // Ekrana değerleri yaz (Ayarlarken takip etmen için)
         document.getElementById("dbg-delta").textContent = std.toFixed(2);
         document.getElementById("dbg-mag").textContent = mean.toFixed(2);
 
-        // 2. Durma/Oturma Kontrolü (Keskin Ayar)
-        if (std < 0.15) {
-            document.getElementById("dbg-state").textContent = "SABIT";
+        // ════════════════════════════════════════════════════════════════════
+        //  FİLTRE 1: ELDE TUTMA VE MİKRO HAREKETLER (EN KRİTİK YER)
+        // ════════════════════════════════════════════════════════════════════
+        // std < 0.2: Masa üstünde duruyor
+        // std 0.2 - 0.8: Elde tutma, hafif sallantı, nefes alma titremesi. 
+        // Bu aralıkta model genelde "Yürüme" sanıyor. Biz burada "Oturma" diyelim.
+        if (std < 0.8) { 
+            document.getElementById("dbg-state").textContent = "DURGUN/ELDE";
             gosterTahmin(histerezisFiltrele(smoothedTahmin("oturma")));
             return;
         }
 
-        document.getElementById("dbg-state").textContent = "HAREKETLI";
+        document.getElementById("dbg-state").textContent = "HAREKETLİ";
 
-        // 3. Model Tahmini
+        // 2. Model Girdisi
         const input = [mean, std, max, min, range, median];
+
         if (typeof score === "function") {
             const skorlar = score(input);
             let maxIdx = 0;
+            let maxSkor = skorlar[0];
+            
             for (let i = 1; i < skorlar.length; i++) {
-                if (skorlar[i] > skorlar[maxIdx]) maxIdx = i;
+                if (skorlar[i] > maxSkor) {
+                    maxSkor = skorlar[i];
+                    maxIdx = i;
+                }
             }
 
             let hammTahmin = SINIFLAR[maxIdx];
 
-            // [FILTRE] "Yalancı Zıplama" Engelleme
-            // Sert yürüyüşü zıplama sanmasın diye STD kontrolü
-            if (hammTahmin === "ziplama" && std < 4.0) {
+            // ════════════════════════════════════════════════════════════════════
+            //  FİLTRE 2: GÜVEN EŞİĞİ (MODEL EMİN DEĞİLSE DEĞİŞTİRME)
+            // ════════════════════════════════════════════════════════════════════
+            if (maxSkor < 0.65) { // Model %65'ten az eminse eski durumu koru
+                return; 
+            }
+
+            // ════════════════════════════════════════════════════════════════════
+            //  FİLTRE 3: MERDİVEN VE ZIPLAMA KORUMASI
+            // ════════════════════════════════════════════════════════════════════
+            
+            // Yanlış Merdiven: Merdiven çıkarken ivme aralığı (range) genellikle geniştir.
+            // Eğer model merdiven diyorsa ama hareketin şiddeti (range) düşükse yürümedir.
+            if (hammTahmin === "merdiven" && range < 5.0) {
                 hammTahmin = "yurume";
             }
 
-            updateConfBar(skorlar[maxIdx], hammTahmin);
+            // Yalancı Zıplama: Çok sert olmayan hareketler zıplama olamaz.
+            if (hammTahmin === "ziplama" && std < 4.5) {
+                hammTahmin = "yurume";
+            }
+
+            // 3. Tahmini Onayla ve Göster
+            updateConfBar(maxSkor, hammTahmin);
             const sonuc = histerezisFiltrele(smoothedTahmin(hammTahmin));
             if (sonuc) gosterTahmin(sonuc);
         }
@@ -413,7 +441,6 @@ function tahminEt(data) {
         console.error("Tahmin Hatası:", e);
     }
 }
-
 // ════════════════════════════════════════════════════════════════════
 //  YARDIMCI SİSTEMLER
 // ════════════════════════════════════════════════════════════════════
