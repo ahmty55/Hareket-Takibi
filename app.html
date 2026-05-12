@@ -525,29 +525,42 @@ function gosterTahmin(tahmin) {
 //  ANA TAHMİN MOTORU
 // ════════════════════════════════════════════════════════════════════
 function tahminEt(data) {
-  // data: [{linX, linY, linZ, mag, rawMag}]
-  // linX/Y/Z  = LPF → HPF → NoiseGate uygulanmış değerler
-  // mag       = HPF sonrası linear magnitude
-  // rawMag    = LPF sonrası ham magnitude (zero-G için)
-
   try {
     const n = data.length;
+    const magnitudes = data.map(d => d.mag); // Linear Magnitude listesi
 
-    // ── 1) Ham magnitude ortalaması (zero-G filtresi) ─────────────
-    let sumRaw = 0;
-    for (const d of data) sumRaw += d.rawMag;
-    const meanRawMag = sumRaw / n;
+    // 1. İstatistikleri Hesapla (Python sırasıyla AYNI olmalı)
+    const mean = magnitudes.reduce((a, b) => a + b, 0) / n;
+    const max = Math.max(...magnitudes);
+    const min = Math.min(...magnitudes);
+    const range = max - min;
+    const std = Math.sqrt(magnitudes.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n);
+    
+    const sorted = [...magnitudes].sort((a, b) => a - b);
+    const median = sorted[Math.floor(n / 2)];
 
-    // ── 2) Zero-G Filtresi ────────────────────────────────────────
-    if (meanRawMag >= ZEROG_MIN && meanRawMag <= ZEROG_MAX) {
-      document.getElementById("dbg-state").textContent = "0G-SABİT";
-      document.getElementById("dbg-mag").textContent   = meanRawMag.toFixed(2);
-      document.getElementById("dbg-delta").textContent = "–";
-      updateConfBar(1.0, "oturma");
-      gosterTahmin(histerezisFiltrele(smoothedTahmin("oturma")));
-      return;
+    // 2. Yeni Model Girişi (6 ÖZELLİK)
+    const input = [ mean, std, max, min, range, median ];
+
+    // 3. Sabit Durum Koruması (Merdiven hatasını bitiren yer)
+    if (std < 0.08) { // Telefon masadaysa modeli hiç yorma
+       gosterTahmin(histerezisFiltrele(smoothedTahmin("oturma")));
+       return;
     }
 
+    // 4. Model Tahmini
+    const skorlar = score(input); 
+    let maxIdx = 0;
+    for (let i = 1; i < skorlar.length; i++) {
+      if (skorlar[i] > skorlar[maxIdx]) maxIdx = i;
+    }
+
+    const hammTahmin = SINIFLAR[maxIdx];
+    updateConfBar(skorlar[maxIdx], hammTahmin);
+    gosterTahmin(histerezisFiltrele(smoothedTahmin(hammTahmin)));
+
+  } catch(e) { console.error("Tahmin hatası:", e); }
+}
     // ── 3) Linear magnitude istatistikleri ───────────────────────
     let sumLin = 0, maxLin = 0;
     for (const d of data) {
