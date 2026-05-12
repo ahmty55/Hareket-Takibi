@@ -1,613 +1,1156 @@
 <!DOCTYPE html>
+
 <html lang="tr">
+
 <head>
+
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Hareket Takibi — Canlı Analiz</title>
-  <script src="model.js?v=999"></script>
-  <!-- Capacitor shim: populated by native runtime in APK -->
-  <script>
-    window.__isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-  </script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title> Canlı Hareket Takibi</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
+
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+
   <style>
+
     :root {
+
       --bg:      #070a0e;
+
       --surface: #0d1117;
+
       --lift:    #141c26;
+
       --border:  #1e2d3d;
+
       --line:    #243447;
+
       --green:   #39e06e;
+
+      --green2:  #1aff6b;
+
       --blue:    #00b4d8;
-      --warn:    #f5a623;
+
       --red:     #ff4560;
+
       --text:    #dde6f0;
+
       --muted:   #5a7080;
-      --dim:     #1e2d3d;
+
+      --dim:     #2e4057;
+
       --mono:    'Share Tech Mono', monospace;
+
       --head:    'Barlow Condensed', sans-serif;
+
     }
+
+
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+
+
+    html { scroll-behavior: smooth; }
+
+
+
     body {
+
       font-family: var(--head);
+
       background: var(--bg);
+
       color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      -webkit-user-select: none;
-      user-select: none;
-      overscroll-behavior: none;
+
+      overflow-x: hidden;
+
     }
+
+
+
+    /* ── scanline texture overlay ── */
+
     body::before {
+
       content: '';
+
       pointer-events: none;
+
       position: fixed; inset: 0; z-index: 9999;
+
       background: repeating-linear-gradient(
-        0deg, transparent, transparent 3px,
-        rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
+
+        0deg,
+
+        transparent,
+
+        transparent 3px,
+
+        rgba(0,0,0,0.07) 3px,
+
+        rgba(0,0,0,0.07) 4px
+
       );
+
     }
-    .topbar {
+
+
+
+    /* ─────────────── NAVBAR ─────────────── */
+
+    nav {
+
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0 20px;
-      padding-top: env(safe-area-inset-top, 0);
-      height: calc(52px + env(safe-area-inset-top, 0));
-      background: var(--surface);
+
+      padding: 0 6%; height: 64px;
+
+      background: rgba(7,10,14,0.85);
+
+      backdrop-filter: blur(12px);
+
       border-bottom: 1px solid var(--border);
+
+    }
+
+
+
+    .nav-logo {
+
+      font-family: var(--mono);
+
+      font-size: 14px;
+
+      color: var(--green);
+
+      letter-spacing: 2px;
+
+      text-transform: uppercase;
+
+    }
+
+    .nav-logo span { color: var(--muted); }
+
+
+
+    .nav-links {
+
+      display: flex; gap: 32px; list-style: none;
+
+    }
+
+    .nav-links a {
+
+      font-family: var(--head);
+
+      font-weight: 600;
+
+      font-size: 13px;
+
+      letter-spacing: 1.5px;
+
+      text-transform: uppercase;
+
+      color: var(--muted);
+
+      text-decoration: none;
+
+      transition: color 0.2s;
+
+    }
+
+    .nav-links a:hover { color: var(--text); }
+
+
+
+    .nav-cta {
+
+      font-family: var(--mono);
+
+      font-size: 12px;
+
+      letter-spacing: 1px;
+
+      padding: 8px 18px;
+
+      border: 1px solid var(--green);
+
+      color: var(--green);
+
+      background: transparent;
+
+      border-radius: 4px;
+
+      cursor: pointer;
+
+      text-decoration: none;
+
+      transition: background 0.2s, color 0.2s;
+
+    }
+
+    .nav-cta:hover { background: var(--green); color: #000; }
+
+
+
+    /* ─────────────── HERO ─────────────── */
+
+    header {
+
+      min-height: 100vh;
+
+      display: flex; flex-direction: column;
+
+      justify-content: center; align-items: flex-start;
+
+      padding: 100px 6% 80px;
+
+      position: relative;
+
+      overflow: hidden;
+
+    }
+
+
+
+    /* background grid */
+
+    header::before {
+
+      content: '';
+
+      position: absolute; inset: 0;
+
+      background-image:
+
+        linear-gradient(var(--border) 1px, transparent 1px),
+
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+
+      background-size: 60px 60px;
+
+      opacity: 0.35;
+
+    }
+
+
+
+    /* glowing orb */
+
+    header::after {
+
+      content: '';
+
+      position: absolute;
+
+      top: -100px; right: -100px;
+
+      width: 600px; height: 600px;
+
+      border-radius: 50%;
+
+      background: radial-gradient(circle, #39e06e18 0%, transparent 70%);
+
+      pointer-events: none;
+
+    }
+
+
+
+    .hero-tag {
+
+      font-family: var(--mono);
+
+      font-size: 11px;
+
+      letter-spacing: 3px;
+
+      text-transform: uppercase;
+
+      color: var(--green);
+
+      background: rgba(57,224,110,0.08);
+
+      border: 1px solid rgba(57,224,110,0.25);
+
+      padding: 5px 12px;
+
+      border-radius: 2px;
+
+      margin-bottom: 28px;
+
+      animation: fadeUp 0.6s ease both;
+
+    }
+
+
+
+    .hero-h1 {
+
+      font-family: var(--head);
+
+      font-size: clamp(52px, 10vw, 110px);
+
+      font-weight: 800;
+
+      line-height: 0.9;
+
+      letter-spacing: -2px;
+
+      text-transform: uppercase;
+
+      color: var(--text);
+
+      max-width: 900px;
+
+      animation: fadeUp 0.7s 0.1s ease both;
+
+    }
+
+
+
+    .hero-h1 em {
+
+      font-style: normal;
+
+      color: var(--green);
+
+      position: relative;
+
+    }
+
+
+
+    .hero-sub {
+
+      font-family: var(--head);
+
+      font-weight: 300;
+
+      font-size: clamp(16px, 2.5vw, 22px);
+
+      color: var(--muted);
+
+      max-width: 540px;
+
+      line-height: 1.5;
+
+      margin-top: 24px;
+
+      animation: fadeUp 0.8s 0.2s ease both;
+
+    }
+
+
+
+    .hero-actions {
+
+      display: flex; gap: 16px; flex-wrap: wrap;
+
+      margin-top: 44px;
+
+      animation: fadeUp 0.9s 0.35s ease both;
+
+    }
+
+
+
+    .btn-launch {
+
+      display: inline-flex; align-items: center; gap: 10px;
+
+      padding: 16px 36px;
+
+      background: var(--green);
+
+      color: #000;
+
+      font-family: var(--head);
+
+      font-weight: 800;
+
+      font-size: 16px;
+
+      letter-spacing: 1px;
+
+      text-transform: uppercase;
+
+      text-decoration: none;
+
+      border-radius: 4px;
+
+      border: none; cursor: pointer;
+
+      transition: transform 0.15s, box-shadow 0.2s;
+
+      box-shadow: 0 0 30px rgba(57,224,110,0.25);
+
+    }
+
+    .btn-launch:hover {
+
+      transform: translateY(-2px);
+
+      box-shadow: 0 0 50px rgba(57,224,110,0.4);
+
+    }
+
+
+
+    .btn-apk {
+
+      display: inline-flex; align-items: center; gap: 10px;
+
+      padding: 16px 36px;
+
+      background: transparent;
+
+      color: var(--text);
+
+      font-family: var(--head);
+
+      font-weight: 600;
+
+      font-size: 16px;
+
+      letter-spacing: 1px;
+
+      text-transform: uppercase;
+
+      text-decoration: none;
+
+      border-radius: 4px;
+
+      border: 1px solid var(--line);
+
+      cursor: pointer;
+
+      transition: border-color 0.2s, color 0.2s;
+
+    }
+
+    .btn-apk:hover { border-color: var(--blue); color: var(--blue); }
+
+
+
+    /* live ticker */
+
+    .hero-ticker {
+
+      font-family: var(--mono);
+
+      font-size: 11px;
+
+      color: var(--muted);
+
+      margin-top: 56px;
+
+      display: flex; gap: 32px;
+
+      animation: fadeUp 1s 0.5s ease both;
+
+    }
+
+    .ticker-item { display: flex; flex-direction: column; gap: 4px; }
+
+    .ticker-val { font-size: 22px; color: var(--text); font-weight: 400; }
+
+    .ticker-val.green { color: var(--green); }
+
+
+
+/* ─────────────── FEATURES (2x2 YAN YANA TASARIM) ─────────────── */
+
+#nasil-calisir {
+
+  padding: 100px 6%;
+
+  border-top: 1px solid var(--border);
+
+}
+
+
+
+/* Başlık ve Grid'i yan yana getiren kapsayıcı */
+
+.features-container {
+
+  display: flex;
+
+  justify-content: space-between;
+
+  align-items: flex-start;
+
+  gap: 60px; /* Başlık ile kutular arasındaki profesyonel boşluk */
+
+}
+
+
+
+.section-eyebrow {
+
+  font-family: var(--mono);
+
+  font-size: 11px;
+
+  letter-spacing: 3px;
+
+  color: var(--green);
+
+  text-transform: uppercase;
+
+  margin-bottom: 12px;
+
+}
+
+
+
+.section-title {
+
+  font-family: var(--head);
+
+  font-size: clamp(32px, 4vw, 54px); /* Yan yana oldukları için biraz optimize edildi */
+
+  font-weight: 800;
+
+  text-transform: uppercase;
+
+  letter-spacing: -1px;
+
+  color: var(--text);
+
+  margin-bottom: 0; 
+
+  flex: 0 0 35%; /* Başlığın sol tarafı kaplama oranı */
+
+  line-height: 1.1;
+
+}
+
+
+
+.features-grid {
+
+  flex: 1; /* Kalan alanın tamamını sağ tarafa ayırır */
+
+  display: grid;
+
+  grid-template-columns: repeat(2, 1fr); /* Tam istediğin gibi 2 sütun (2x2) */
+
+  gap: 1px;
+
+  background: var(--border);
+
+  border: 1px solid var(--border);
+
+  border-radius: 8px;
+
+  overflow: hidden;
+
+}
+
+
+
+.feature-cell {
+
+  background: var(--surface);
+
+  padding: 36px 32px;
+
+  transition: background 0.2s;
+
+}
+
+.feature-cell:hover { background: var(--lift); }
+
+
+
+.feature-icon {
+
+  font-size: 28px;
+
+  margin-bottom: 16px;
+
+}
+
+
+
+.feature-label {
+
+  font-family: var(--mono);
+
+  font-size: 10px;
+
+  letter-spacing: 2px;
+
+  color: var(--muted);
+
+  text-transform: uppercase;
+
+  margin-bottom: 8px;
+
+}
+
+
+
+.feature-title {
+
+  font-family: var(--head);
+
+  font-size: 20px;
+
+  font-weight: 800;
+
+  text-transform: uppercase;
+
+  color: var(--text);
+
+  margin-bottom: 10px;
+
+  letter-spacing: 0.5px;
+
+}
+
+
+
+.feature-desc {
+
+  font-family: var(--head);
+
+  font-weight: 300;
+
+  font-size: 14px;
+
+  color: var(--muted);
+
+  line-height: 1.5;
+
+}
+
+
+
+/* 📱 Mobil Uyumluluk - Tablet ve Telefondan bakınca dağılmasın */
+
+@media (max-width: 1024px) {
+
+  .features-container {
+
+    flex-direction: column; /* Tablette alt alta geçer */
+
+    gap: 40px;
+
+  }
+
+  .section-title {
+
+    flex: none;
+
+    max-width: 100%;
+
+  }
+
+}
+
+
+
+@media (max-width: 650px) {
+
+  .features-grid {
+
+    grid-template-columns: 1fr; /* Telefondan bakınca kutular tek sıra olur */
+
+  }
+
+}
+
+
+
+    /* ─────────────── AKTİVİTELER ─────────────── */
+
+    #aktiviteler {
+
+      padding: 100px 6%;
+
+      border-top: 1px solid var(--border);
+
+    }
+
+
+
+    .aktivite-scroll {
+
+      display: flex; gap: 12px;
+
+      overflow-x: auto;
+
+      padding-bottom: 8px;
+
+      scrollbar-width: none;
+
+    }
+
+    .aktivite-scroll::-webkit-scrollbar { display: none; }
+
+
+
+    .akt-pill {
+
       flex-shrink: 0;
+
+      display: flex; flex-direction: column; align-items: center;
+
+      gap: 8px;
+
+      padding: 24px 28px;
+
+      background: var(--surface);
+
+      border: 1px solid var(--border);
+
+      border-radius: 8px;
+
+      min-width: 120px;
+
+      transition: border-color 0.2s, transform 0.2s;
+
     }
-    .topbar-logo { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; color: var(--green); }
-    .topbar-logo span { color: var(--muted); }
-    .topbar-back {
-      font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
-      color: var(--muted); text-decoration: none;
-      padding: 5px 12px; border: 1px solid var(--border); border-radius: 3px;
-      transition: color .2s, border-color .2s;
+
+    .akt-pill:hover { border-color: var(--green); transform: translateY(-4px); }
+
+    .akt-pill .icon { font-size: 28px; }
+
+    .akt-pill .name {
+
+      font-family: var(--head);
+
+      font-weight: 600;
+
+      font-size: 13px;
+
+      letter-spacing: 1px;
+
+      text-transform: uppercase;
+
+      color: var(--muted);
+
     }
-    .topbar-back:hover { color: var(--text); border-color: var(--line); }
-    .main {
-      flex: 1; display: flex; flex-direction: column;
-      padding: 16px;
-      padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));
-      gap: 12px;
-      max-width: 480px; width: 100%; margin: 0 auto;
+
+
+
+    /* ─────────────── APK SECTION ─────────────── */
+
+    #apk {
+
+      margin: 0 6% 100px;
+
+      padding: 60px 48px;
+
+      background: linear-gradient(135deg, #0d1a0f, #0d1117);
+
+      border: 1px solid rgba(57,224,110,0.2);
+
+      border-radius: 12px;
+
+      display: flex; align-items: center; justify-content: space-between;
+
+      flex-wrap: wrap; gap: 32px;
+
+      position: relative;
+
+      overflow: hidden;
+
     }
-    .status-row {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 14px;
-      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+
+
+
+    #apk::before {
+
+      content: 'APK';
+
+      position: absolute; right: -20px; bottom: -30px;
+
+      font-family: var(--head);
+
+      font-size: 180px;
+
+      font-weight: 800;
+
+      color: rgba(57,224,110,0.04);
+
+      letter-spacing: -8px;
+
+      pointer-events: none;
+
     }
-    .status-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: var(--dim); flex-shrink: 0; transition: background .3s;
+
+
+
+    .apk-text h2 {
+
+      font-family: var(--head);
+
+      font-size: clamp(28px, 4vw, 48px);
+
+      font-weight: 800;
+
+      text-transform: uppercase;
+
+      letter-spacing: -1px;
+
+      color: var(--text);
+
+      margin-bottom: 10px;
+
     }
-    .status-dot.active {
-      background: var(--green); box-shadow: 0 0 8px var(--green);
-      animation: pulse 2s infinite;
+
+    .apk-text p {
+
+      font-family: var(--head);
+
+      font-weight: 300;
+
+      font-size: 16px;
+
+      color: var(--muted);
+
+      max-width: 400px;
+
     }
-    @keyframes pulse {
-      0%,100% { box-shadow: 0 0 5px var(--green); }
-      50%      { box-shadow: 0 0 14px var(--green); }
+
+
+
+    /* ─────────────── FOOTER ─────────────── */
+
+    footer {
+
+      border-top: 1px solid var(--border);
+
+      padding: 40px 6%;
+
+      display: flex; align-items: center; justify-content: space-between;
+
+      flex-wrap: wrap; gap: 16px;
+
     }
-    .status-text { font-family: var(--mono); font-size: 11px; letter-spacing: 1px; color: var(--muted); flex:1; }
-    .controls { display: flex; gap: 8px; }
-    .btn-ctrl {
-      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
-      padding: 10px 6px; min-height: 52px;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 6px; font-family: var(--head); font-weight: 600;
-      font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
-      color: var(--muted); cursor: pointer;
-      transition: background .15s, border-color .15s, color .15s;
-      touch-action: manipulation;
+
+
+
+    .footer-logo {
+
+      font-family: var(--mono);
+
+      font-size: 13px;
+
+      color: var(--muted);
+
+      letter-spacing: 2px;
+
     }
-    .btn-ctrl .ic { font-size: 16px; }
-    .btn-ctrl:active { transform: scale(0.97); }
-    .btn-ctrl.green { border-color: rgba(57,224,110,.3); color: var(--green); }
-    .btn-ctrl.green:hover { background: rgba(57,224,110,.07); }
-    .btn-ctrl.red   { border-color: rgba(255,69,96,.3);  color: var(--red); }
-    .btn-ctrl.red:hover { background: rgba(255,69,96,.07); }
-    .alert {
-      display: none; padding: 12px 16px;
-      background: rgba(245,166,35,.08); border: 1px solid rgba(245,166,35,.35);
-      border-radius: 6px; font-family: var(--mono); font-size: 11px; letter-spacing:1px;
-      color: var(--warn); text-align: center;
+
+    .footer-logo b { color: var(--green); }
+
+
+
+    .footer-links { display: flex; gap: 24px; }
+
+    .footer-links a {
+
+      font-family: var(--mono);
+
+      font-size: 11px;
+
+      letter-spacing: 1px;
+
+      color: var(--muted);
+
+      text-decoration: none;
+
+      text-transform: uppercase;
+
+      transition: color 0.2s;
+
     }
-    .tahmin-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 8px; padding: 28px 20px 24px; text-align: center;
-      position: relative; overflow: hidden;
+
+    .footer-links a:hover { color: var(--text); }
+
+
+
+    /* ─────────────── ANIMATIONS ─────────────── */
+
+    @keyframes fadeUp {
+
+      from { opacity: 0; transform: translateY(20px); }
+
+      to   { opacity: 1; transform: translateY(0); }
+
     }
-    .tahmin-card::before, .tahmin-card::after {
-      content: ''; position: absolute;
-      width: 12px; height: 12px; border-color: var(--green); border-style: solid; opacity: .4;
+
+
+
+    /* ─────────────── RESPONSIVE ─────────────── */
+
+    @media (max-width: 640px) {
+
+      nav { padding: 0 5%; }
+
+      .nav-links { display: none; }
+
+      header { padding: 90px 5% 60px; }
+
+      #apk { flex-direction: column; padding: 40px 28px; }
+
+      footer { flex-direction: column; align-items: flex-start; }
+
     }
-    .tahmin-card::before { top:8px; left:8px; border-width:1px 0 0 1px; }
-    .tahmin-card::after  { bottom:8px; right:8px; border-width:0 1px 1px 0; }
-    .tc-label { font-family:var(--mono); font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-bottom:12px; }
-    .tc-emoji { font-size:32px; margin-bottom:8px; transition: all .2s; }
-    .tc-value {
-      font-family:var(--head); font-size:52px; font-weight:800;
-      letter-spacing:-1px; text-transform:uppercase; color:var(--green);
-      transition: color .3s; line-height:1;
-    }
-    .tc-value.idle    { font-size:20px; font-weight:300; color:var(--dim); letter-spacing:4px; }
-    .tc-value.belirsiz { font-size:28px; font-weight:300; color:var(--warn); letter-spacing:2px; }
-    .conf-bar-wrap { margin-top: 10px; background: var(--lift); border-radius: 3px; height: 4px; overflow: hidden; }
-    .conf-bar { height: 100%; background: var(--green); border-radius: 3px; transition: width .4s, background .3s; width: 0%; }
-    .conf-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-top: 6px; }
-    .akt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .akt-grid .akt-card:nth-child(5) { grid-column: 1 / -1; }
-    .akt-card {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
-      padding: 14px 12px; display: flex; align-items: center; gap: 12px;
-      transition: border-color .25s, background .25s;
-    }
-    .akt-card.aktif { border-color: var(--green); background: rgba(57,224,110,.05); }
-    .akt-card.aktif .akt-name { color: var(--green); }
-    .akt-icon { font-size: 22px; flex-shrink: 0; }
-    .akt-info { flex: 1; }
-    .akt-name { font-family:var(--head); font-weight:800; font-size:15px; letter-spacing:.5px; text-transform:uppercase; color:var(--text); transition:color .25s; }
-    .akt-time { font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:2px; }
-    .sensor-row { display:flex; gap:8px; }
-    .sensor-box { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:10px; text-align:center; }
-    .sensor-axis { font-family:var(--mono); font-size:10px; letter-spacing:2px; color:var(--muted); margin-bottom:4px; }
-    .sensor-val  { font-family:var(--mono); font-size:15px; color:var(--text); }
-    .sensor-val.green { color:var(--green); }
-    .debug-row { display: flex; gap: 8px; }
-    .debug-box { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:10px; text-align:center; }
-    .debug-axis { font-family:var(--mono); font-size:9px; letter-spacing:1px; color:var(--muted); margin-bottom:4px; }
-    .debug-val  { font-family:var(--mono); font-size:13px; color:var(--blue); }
-    #start-overlay {
-      position:fixed; inset:0; z-index:200; background:var(--bg);
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      text-align:center; padding:40px; transition:opacity .4s;
-    }
-    #start-overlay.hidden { opacity:0; pointer-events:none; }
-    #start-overlay::before {
-      content:''; position:absolute; inset:0;
-      background-image: linear-gradient(var(--border) 1px, transparent 1px),
-                        linear-gradient(90deg, var(--border) 1px, transparent 1px);
-      background-size: 50px 50px; opacity:.2;
-    }
-    .so-logo { font-family:var(--mono); font-size:13px; letter-spacing:3px; color:var(--green); margin-bottom:48px; position:relative; }
-    .so-title {
-      font-family:var(--head); font-size:clamp(40px,12vw,72px); font-weight:800;
-      text-transform:uppercase; letter-spacing:-2px; color:var(--text); margin-bottom:16px; position:relative;
-    }
-    .so-title em { font-style:normal; color:var(--green); }
-    .so-sub { font-family:var(--head); font-weight:300; font-size:16px; color:var(--muted); max-width:340px; line-height:1.5; margin-bottom:48px; position:relative; }
-    .so-btn {
-      position:relative; display:inline-flex; align-items:center; gap:10px;
-      padding:16px 36px; min-height:56px;
-      background:var(--green); color:#000;
-      font-family:var(--head); font-weight:800; font-size:18px;
-      letter-spacing:1px; text-transform:uppercase;
-      border:none; border-radius:4px; cursor:pointer;
-      box-shadow:0 0 30px rgba(57,224,110,.3);
-      transition:transform .15s, box-shadow .2s;
-      touch-action: manipulation;
-    }
-    .so-btn:hover { transform:translateY(-2px); box-shadow:0 0 50px rgba(57,224,110,.5); }
-    #platform-badge {
-      font-family: var(--mono); font-size: 9px; letter-spacing: 2px;
-      color: var(--muted); padding: 3px 8px;
-      border: 1px solid var(--border); border-radius: 3px;
-      position: fixed; bottom: 12px; right: 12px; z-index: 100;
-    }
+
   </style>
+
 </head>
+
 <body>
 
-  <div id="start-overlay">
-    <div class="so-logo">İvme<span style="color:var(--muted)">Ölçer</span></div>
-    <h1 class="so-title">Hareket<br /><em>Analizi</em></h1>
-    <p class="so-sub" id="overlay-sub">Sensöre erişim için izin gerekli. Başlatmak için butona bas.</p>
-    <button class="so-btn" onclick="izinAlVeBaslat()">&#9654; Başlat</button>
+
+
+  <!-- NAVBAR -->
+
+  <nav>
+
+    <div class="nav-logo">Hareket<span>Takibi</span></div>
+
+    <ul class="nav-links">
+
+      <li><a href="#home">Ana Sayfa</a></li>
+
+      <li><a href="#nasil-calisir">Nasıl Çalışır?</a></li>
+
+      <li><a href="#aktiviteler">Aktiviteler</a></li>
+
+      <li><a href="#apk">APK İndir</a></li>
+
+    </ul>
+
+    <a href="app.html" class="nav-cta">▶ Canlı Takip</a>
+
+  </nav>
+
+
+
+  <!-- HERO -->
+
+  <header id="home">
+
+    <div class="hero-tag">// v1.0 — Gerçek Zamanlı Analiz</div>
+
+    <h1 class="hero-h1">Hareketinin<br /><em>farkında</em><br />mısın?</h1>
+
+    <p class="hero-sub">Telefon ivmeölçerini, eğittiğimiz model ile birleştirerek çeşitli fiziksel aktiviteleri milisaniyeler içinde sınıflandırır.</p>
+
+
+
+    <div class="hero-actions">
+
+      <a href="app.html" class="btn-launch">
+
+        <span>▶</span> Analizi Başlat
+
+      </a>
+
+      <a href="#apk" class="btn-apk">
+
+        <span>⬇</span> APK İndir
+
+      </a>
+
+    </div>
+
+
+
+    <div class="hero-ticker">
+
+      <div class="ticker-item">
+
+        <span class="ticker-val green">50</span>
+
+        <span>Örnek / tahmin</span>
+
+      </div>
+
+      <div class="ticker-item">
+
+        <span class="ticker-val">5</span>
+
+        <span>Hareket tipi</span>
+
+      </div>
+
+      <div class="ticker-item">
+
+        <span class="ticker-val green">~0ms</span>
+
+        <span>İşlem gecikmesi</span>
+
+      </div>
+
+      <div class="ticker-item">
+
+        <span class="ticker-val">JS</span>
+
+        <span>Model çalışma ortamı</span>
+
+      </div>
+
+    </div>
+
+  </header>
+
+
+
+  <!-- NASIL ÇALIŞIR -->
+
+<section id="nasil-calisir">
+
+  <div class="section-eyebrow">// nasıl çalışır</div>
+
+  
+
+  <div class="features-container">
+
+    <h2 class="section-title">Dört adımda<br />akıllı analiz</h2>
+
+
+
+    <div class="features-grid">
+
+      <div class="feature-cell">
+
+        <div class="feature-icon">📡</div>
+
+        <div class="feature-label">Adım 01</div>
+
+        <div class="feature-title">Sensör Verisi</div>
+
+        <div class="feature-desc">Telefondaki ivmeölçer (accelerometer) X, Y, Z eksenlerindeki ivmeyi saniyede onlarca kez okur.</div>
+
+      </div>
+
+      <div class="feature-cell">
+
+        <div class="feature-icon">🧠</div>
+
+        <div class="feature-label">Adım 02</div>
+
+        <div class="feature-title">Karar Vakti</div>
+
+        <div class="feature-desc">Gerçek hareket verileriyle eğitilmiş model, ortalama ivme değerlerine bakarak hangi hareketi yaptığını çözer.</div>
+
+      </div>
+
+      <div class="feature-cell">
+
+        <div class="feature-icon">⚡</div>
+
+        <div class="feature-label">Adım 03</div>
+
+        <div class="feature-title">Anlık Tahmin</div>
+
+        <div class="feature-desc">Model tamamen tarayıcıda çalışır — sunucuya veri gönderilmez, internet gerekmez, gizliliğin korunur.</div>
+
+      </div>
+
+      <div class="feature-cell">
+
+        <div class="feature-icon">📊</div>
+
+        <div class="feature-label">Adım 04</div>
+
+        <div class="feature-title">Süre Takibi</div>
+
+        <div class="feature-desc">Her aktivitede ne kadar zaman geçirdiğini kaydeder. Çok oturduğunda seni harekete geçirmek için uyarır.</div>
+
+      </div>
+
+    </div>
+
   </div>
 
-  <div class="topbar">
-    <div class="topbar-logo">Hareket<span>Takibi</span></div>
-    <a href="index.html" class="topbar-back">&#8592; Ana Sayfa</a>
-  </div>
+</section>
 
-  <div class="main">
-    <div class="status-row">
-      <div class="status-dot" id="status-dot"></div>
-      <div class="status-text" id="durum">Başlatılıyor...</div>
+  <!-- AKTİVİTELER -->
+
+  <section id="aktiviteler">
+
+    <div class="section-eyebrow">// tanınan hareketler</div>
+
+    <h2 class="section-title">5 farklı<br />hareket tipi</h2>
+
+
+
+    <div class="aktivite-scroll">
+
+      <div class="akt-pill"><div class="icon">🚶</div><div class="name">Yürüme</div></div>
+
+      <div class="akt-pill"><div class="icon">🏃</div><div class="name">Koşma</div></div>
+
+      <div class="akt-pill"><div class="icon">⬆️</div><div class="name">Zıplama</div></div>
+
+      <div class="akt-pill"><div class="icon">🪜</div><div class="name">Merdiven</div></div>
+
+      <div class="akt-pill"><div class="icon">🪑</div><div class="name">Oturma</div></div>
+
     </div>
-    <div class="controls">
-      <button class="btn-ctrl red"   id="btn-durdur"  onclick="durdur()"        style="display:none"><span class="ic">&#9209;</span>Durdur</button>
-      <button class="btn-ctrl green" id="btn-devam"   onclick="devamEt()"       style="display:none"><span class="ic">&#9654;</span>Devam</button>
-      <button class="btn-ctrl green" id="btn-yeniden" onclick="yenidenBaslat()" style="display:none"><span class="ic">&#128260;</span>Yeniden</button>
+
+  </section>
+
+
+
+  <!-- APK -->
+
+  <section id="apk">
+
+    <div class="apk-text">
+
+      <h2>Android Uygulaması</h2>
+
+      <p>Doğrudan cihazına kur, tarayıcı olmadan çalıştır. Sensör erişimi için optimize edilmiş Android APK.</p>
+
     </div>
-    <div class="alert" id="uyari">&#9888; 10+ DAKİKA OTURUYORSUN — KALK HAREKET ET!</div>
-    <div class="tahmin-card">
-      <div class="tc-label">// şu anki hareket</div>
-      <div class="tc-emoji" id="tc-emoji">&#8987;</div>
-      <div class="tc-value idle" id="tc-value">BEKLENİYOR</div>
-      <div class="conf-bar-wrap"><div class="conf-bar" id="conf-bar"></div></div>
-      <div class="conf-label" id="conf-label">GÜVEN: –</div>
+
+    <!-- ↓ Google Drive linkini buraya yapıştır -->
+
+    <a href="https://drive.google.com/drive/folders/1IrEUHVu3nd5VFO1tAVvOynNw-55APq2z?usp=drive_link" target="_blank" class="btn-launch">
+
+      ⬇ APK İndir
+
+    </a>
+
+  </section>
+
+
+
+  <!-- FOOTER -->
+
+  <footer>
+
+    <div class="footer-logo">Hareket<b>Takibi</b> — <span style="color:#2e4057">Geliştiriciler: Ahmet Yasin Bal - Abdülkerim Atuş</span></div>
+
+    <div class="footer-links">
+
+      <a href="https://github.com/ahmty55" target="_blank">GitHub</a>
+
+      <a href="app.html">Canlı Takip</a>
+
+      <a href="https://www.linkedin.com/in/ahmet-yasin-bal/" targer="_blank">Linkedin</a>
+
     </div>
-    <div class="akt-grid">
-      <div class="akt-card" id="kart-yurume">
-        <div class="akt-icon">🚶</div>
-        <div class="akt-info"><div class="akt-name">Yürüme</div><div class="akt-time" id="t-yurume">0s</div></div>
-      </div>
-      <div class="akt-card" id="kart-kosma">
-        <div class="akt-icon">🏃</div>
-        <div class="akt-info"><div class="akt-name">Koşma</div><div class="akt-time" id="t-kosma">0s</div></div>
-      </div>
-      <div class="akt-card" id="kart-ziplama">
-        <div class="akt-icon">⬆️</div>
-        <div class="akt-info"><div class="akt-name">Zıplama</div><div class="akt-time" id="t-ziplama">0s</div></div>
-      </div>
-      <div class="akt-card" id="kart-merdiven">
-        <div class="akt-icon">🪜</div>
-        <div class="akt-info"><div class="akt-name">Merdiven</div><div class="akt-time" id="t-merdiven">0s</div></div>
-      </div>
-      <div class="akt-card" id="kart-oturma">
-        <div class="akt-icon">🪑</div>
-        <div class="akt-info"><div class="akt-name">Oturma</div><div class="akt-time" id="t-oturma">0s</div></div>
-      </div>
-    </div>
-    <div class="sensor-row">
-      <div class="sensor-box"><div class="sensor-axis">X</div><div class="sensor-val" id="ham-x">–</div></div>
-      <div class="sensor-box"><div class="sensor-axis">Y</div><div class="sensor-val" id="ham-y">–</div></div>
-      <div class="sensor-box"><div class="sensor-axis">Z</div><div class="sensor-val green" id="ham-z">–</div></div>
-    </div>
-    <div class="debug-row">
-      <div class="debug-box"><div class="debug-axis">LIN MAG</div><div class="debug-val" id="dbg-mag">–</div></div>
-      <div class="debug-box"><div class="debug-axis">STD MAG</div><div class="debug-val" id="dbg-delta">–</div></div>
-      <div class="debug-box"><div class="debug-axis">DURUM</div><div class="debug-val" id="dbg-state">–</div></div>
-    </div>
-  </div>
 
-  <div id="platform-badge">WEB</div>
+  </footer>
 
-<script>
-// ════════════════════════════════════════════════════════════════
-//  PLATFORM DETECTION
-// ════════════════════════════════════════════════════════════════
-const PLATFORM = (function() {
-  const ua = navigator.userAgent || "";
-  if (window.__isNativeApp) return "capacitor";
-  if (/android/i.test(ua))  return "android";
-  if (/iPad|iPhone|iPod/.test(ua)) return "ios";
-  return "web";
-})();
-document.getElementById("platform-badge").textContent = PLATFORM.toUpperCase();
 
-// ════════════════════════════════════════════════════════════════
-//  KALİBRASYON PARAMETRELERİ
-// ════════════════════════════════════════════════════════════════
-const SINIFLAR            = ["yurume", "kosma", "ziplama", "merdiven", "oturma"];
-const HPF_ALPHA           = 0.95;
-const LPF_ALPHA           = 0.5;
-const ZEROG_MIN           = 9.4;
-const ZEROG_MAX           = 10.2;
-const IDLE_LOCK_THRESHOLD = 0.08;
-const STILL_STD           = 0.05;
-const NOISE_GATE_VAL      = 0.02;
-const HYSTERESIS_FRAMES   = 3;
-const STAIR_Z_STD_MIN     = 0.15;
-const SMOOTH_WINDOW       = 10;
-const WINDOW_SIZE         = 50;
-const OTURMA_LIMIT        = 600;
 
-const META = {
-  yurume:   { emoji:"🚶", label:"YÜRÜME"   },
-  kosma:    { emoji:"🏃", label:"KOŞMA"    },
-  ziplama:  { emoji:"⬆️", label:"ZIPLAMA"  },
-  merdiven: { emoji:"🪜", label:"MERDİVEN" },
-  oturma:   { emoji:"🪑", label:"OTURMA"   },
-};
-
-let buffer=[], aktif=false, listener=null, capListener=null;
-let mevcutTahmin=null, oturmaSayac=0;
-let sureler = {yurume:0, kosma:0, ziplama:0, merdiven:0, oturma:0};
-let tahminGecmisi=[];
-let hpfDurum={x:0,y:0,z:0}, hpfBaslatildi=false;
-let lpfDurum={x:0,y:0,z:0}, lpfBaslatildi=false;
-let histerezisAday=null, histerezisKarsilasma=0;
-
-// ════════════════════════════════════════════════════════════════
-//  YARDIMCI FONKSİYONLAR
-// ════════════════════════════════════════════════════════════════
-function log(m) { document.getElementById("durum").textContent = m; }
-function fmt(s) { return s < 60 ? s+"s" : Math.floor(s/60)+"dk "+(s%60)+"s"; }
-
-function lpfFiltrele(ham) {
-  if (!lpfBaslatildi) { lpfDurum.x=ham.x; lpfDurum.y=ham.y; lpfDurum.z=ham.z; lpfBaslatildi=true; }
-  lpfDurum.x = LPF_ALPHA*ham.x + (1-LPF_ALPHA)*lpfDurum.x;
-  lpfDurum.y = LPF_ALPHA*ham.y + (1-LPF_ALPHA)*lpfDurum.y;
-  lpfDurum.z = LPF_ALPHA*ham.z + (1-LPF_ALPHA)*lpfDurum.z;
-  return {x:lpfDurum.x, y:lpfDurum.y, z:lpfDurum.z};
-}
-
-function hpfFiltrele(ham) {
-  if (!hpfBaslatildi) { hpfDurum.x=ham.x; hpfDurum.y=ham.y; hpfDurum.z=ham.z; hpfBaslatildi=true; }
-  hpfDurum.x = HPF_ALPHA*hpfDurum.x + (1-HPF_ALPHA)*ham.x;
-  hpfDurum.y = HPF_ALPHA*hpfDurum.y + (1-HPF_ALPHA)*ham.y;
-  hpfDurum.z = HPF_ALPHA*hpfDurum.z + (1-HPF_ALPHA)*ham.z;
-  return {x:ham.x-hpfDurum.x, y:ham.y-hpfDurum.y, z:ham.z-hpfDurum.z};
-}
-
-function noiseGate(v) { return Math.abs(v) < NOISE_GATE_VAL ? 0 : v; }
-function magnitude(x,y,z) { return Math.sqrt(x*x+y*y+z*z); }
-
-function smoothedTahmin(yeniTahmin) {
-  tahminGecmisi.push(yeniTahmin);
-  if (tahminGecmisi.length > SMOOTH_WINDOW) tahminGecmisi.shift();
-  const sayac = {};
-  for (const t of tahminGecmisi) sayac[t]=(sayac[t]||0)+1;
-  let maxK=tahminGecmisi[0], maxV=0;
-  for (const [k,v] of Object.entries(sayac)) { if(v>maxV){maxV=v;maxK=k;} }
-  return maxK;
-}
-
-function histerezisFiltrele(yeniTahmin) {
-  if (yeniTahmin === histerezisAday) { histerezisKarsilasma++; }
-  else { histerezisAday=yeniTahmin; histerezisKarsilasma=1; }
-  return histerezisKarsilasma >= HYSTERESIS_FRAMES ? yeniTahmin : mevcutTahmin;
-}
-
-function updateConfBar(pct, tahmin) {
-  const p = Math.round(pct*100);
-  document.getElementById("conf-bar").style.width = p+"%";
-  document.getElementById("conf-bar").style.background = pct>=0.55 ? "var(--green)" : "var(--warn)";
-  document.getElementById("conf-label").textContent = "GÜVEN: %"+p;
-}
-
-function gosterTahmin(tahmin) {
-  if (!tahmin) return;
-  if (mevcutTahmin && mevcutTahmin!==tahmin) {
-    const eski = document.getElementById("kart-"+mevcutTahmin);
-    if (eski) eski.classList.remove("aktif");
-  }
-  const yeniKart = document.getElementById("kart-"+tahmin);
-  if (yeniKart) yeniKart.classList.add("aktif");
-  const m = META[tahmin]||{};
-  document.getElementById("tc-value").className   = "tc-value";
-  document.getElementById("tc-value").textContent = m.label || tahmin.toUpperCase();
-  document.getElementById("tc-emoji").textContent  = m.emoji || "?";
-  mevcutTahmin = tahmin;
-  sureler[tahmin] = (sureler[tahmin]||0)+1;
-  const tEl = document.getElementById("t-"+tahmin);
-  if (tEl) tEl.textContent = fmt(sureler[tahmin]);
-  if (tahmin==="oturma") {
-    oturmaSayac++;
-    if (oturmaSayac>=OTURMA_LIMIT) document.getElementById("uyari").style.display="block";
-  } else {
-    oturmaSayac=0;
-    document.getElementById("uyari").style.display="none";
-  }
-}
-
-// ════════════════════════════════════════════════════════════════
-//  TAHMİN MOTORU
-// ════════════════════════════════════════════════════════════════
-function tahminEt(data) {
-  try {
-    const n = data.length;
-    let sumRaw=0;
-    for (const d of data) sumRaw+=d.rawMag;
-    const meanRawMag = sumRaw/n;
-
-    if (meanRawMag>=ZEROG_MIN && meanRawMag<=ZEROG_MAX) {
-      document.getElementById("dbg-state").textContent="0G-SABİT";
-      document.getElementById("dbg-mag").textContent=meanRawMag.toFixed(2);
-      document.getElementById("dbg-delta").textContent="–";
-      updateConfBar(1.0,"oturma");
-      gosterTahmin(histerezisFiltrele(smoothedTahmin("oturma")));
-      return;
-    }
-
-    let sumLin=0, maxLin=0;
-    for (const d of data) { sumLin+=d.mag; if(d.mag>maxLin)maxLin=d.mag; }
-    const meanLinMag = sumLin/n;
-    let varSum=0;
-    for (const d of data) varSum+=(d.mag-meanLinMag)**2;
-    const stdLinMag = Math.sqrt(varSum/n);
-
-    document.getElementById("dbg-mag").textContent   = meanLinMag.toFixed(3);
-    document.getElementById("dbg-delta").textContent = stdLinMag.toFixed(3);
-
-    if (meanLinMag < IDLE_LOCK_THRESHOLD) {
-      document.getElementById("dbg-state").textContent="KILIT-SABİT";
-      updateConfBar(1.0,"oturma");
-      gosterTahmin(histerezisFiltrele(smoothedTahmin("oturma")));
-      return;
-    }
-    if (stdLinMag < STILL_STD) {
-      document.getElementById("dbg-state").textContent="STD-SABİT";
-      updateConfBar(1.0,"oturma");
-      gosterTahmin(histerezisFiltrele(smoothedTahmin("oturma")));
-      return;
-    }
-
-    document.getElementById("dbg-state").textContent="AKTİF";
-
-    let sumZ=0;
-    for (const d of data) sumZ+=d.linZ;
-    const meanZ=sumZ/n;
-    let varZ=0;
-    for (const d of data) varZ+=(d.linZ-meanZ)**2;
-    const stdZ=Math.sqrt(varZ/n);
-
-    const input = [meanLinMag, stdLinMag, maxLin, meanLinMag];
-    const skorlar = score(input);
-
-    const merdivenIdx = SINIFLAR.indexOf("merdiven");
-    if (merdivenIdx!==-1 && stdZ<STAIR_Z_STD_MIN) skorlar[merdivenIdx]=0;
-
-    let maxIdx=0;
-    for (let i=1;i<skorlar.length;i++) if(skorlar[i]>skorlar[maxIdx]) maxIdx=i;
-
-    const confidence = skorlar[maxIdx];
-    const hammTahmin = SINIFLAR[maxIdx];
-    if (!hammTahmin) return;
-
-    updateConfBar(confidence, hammTahmin);
-    gosterTahmin(histerezisFiltrele(smoothedTahmin(hammTahmin)));
-  } catch(e) { log("Tahmin hatası: "+e.message); }
-}
-
-// ════════════════════════════════════════════════════════════════
-//  SENSÖR VERİSİ (platform bağımsız)
-// ════════════════════════════════════════════════════════════════
-function islemSensorVerisi(hamX, hamY, hamZ) {
-  if (!aktif) return;
-  const lpf = lpfFiltrele({x:hamX,y:hamY,z:hamZ});
-  const lin = hpfFiltrele({x:lpf.x,y:lpf.y,z:lpf.z});
-  const lx=noiseGate(lin.x), ly=noiseGate(lin.y), lz=noiseGate(lin.z);
-  const mag    = magnitude(lx,ly,lz);
-  const rawMag = magnitude(lpf.x,lpf.y,lpf.z);
-  document.getElementById("ham-x").textContent = lx.toFixed(2);
-  document.getElementById("ham-y").textContent = ly.toFixed(2);
-  document.getElementById("ham-z").textContent = lz.toFixed(2);
-  buffer.push({linX:lx,linY:ly,linZ:lz,mag,rawMag});
-  if (buffer.length>=WINDOW_SIZE) { tahminEt([...buffer]); buffer=[]; }
-}
-
-// ════════════════════════════════════════════════════════════════
-//  SENSÖR KATMANI — PLATFORM ADAPTÖRÜ
-// ════════════════════════════════════════════════════════════════
-function baslat_web() {
-  listener = (e) => {
-    let hamX, hamY, hamZ;
-    const linAcc = e.acceleration;
-    if (linAcc && linAcc.x!==null && linAcc.x!==undefined && linAcc.x!==0) {
-      hamX=linAcc.x; hamY=linAcc.y; hamZ=linAcc.z;
-    } else {
-      const raw = e.accelerationIncludingGravity;
-      if (!raw || raw.x===null) return;
-      hamX=raw.x; hamY=raw.y; hamZ=raw.z;
-    }
-    islemSensorVerisi(hamX, hamY, hamZ);
-  };
-  window.addEventListener("devicemotion", listener, true);
-  log("Sensörler aktif (android/web)...");
-}
-
-async function baslat_capacitor() {
-  try {
-    const { Motion } = Capacitor.Plugins;
-    if (Motion.requestPermissions) {
-      const perm = await Motion.requestPermissions();
-      if (perm.acceleration !== "granted") { log("İvmeölçer izni reddedildi!"); return; }
-    }
-    capListener = await Motion.addListener("accel", (event) => {
-      if (!aktif) return;
-      const { x, y, z } = event.accelerationIncludingGravity;
-      islemSensorVerisi(x, y, z);
-    });
-    log("Sensörler aktif (Capacitor)...");
-  } catch(e) {
-    log("Capacitor hatası, web moduna geçiliyor...");
-    baslat_web();
-  }
-}
-
-function baslat() {
-  if (typeof score==="undefined") { log("model.js yüklenemedi!"); return; }
-  aktif=true; buffer=[];
-  hpfDurum={x:0,y:0,z:0}; hpfBaslatildi=false;
-  lpfDurum={x:0,y:0,z:0}; lpfBaslatildi=false;
-  histerezisAday=null; histerezisKarsilasma=0;
-
-  document.getElementById("status-dot").classList.add("active");
-  document.getElementById("btn-durdur").style.display="flex";
-  document.getElementById("btn-devam").style.display="none";
-  document.getElementById("btn-yeniden").style.display="none";
-
-  if (PLATFORM==="capacitor") baslat_capacitor();
-  else baslat_web();
-}
-
-// ════════════════════════════════════════════════════════════════
-//  İZİN KATMANI
-// ════════════════════════════════════════════════════════════════
-function izinAlVeBaslat() {
-  const ov = document.getElementById("start-overlay");
-  ov.classList.add("hidden");
-  setTimeout(()=> ov.style.display="none", 400);
-
-  if (PLATFORM==="capacitor" || PLATFORM==="android") {
-    // Android WebView / Capacitor: DeviceMotion works without requestPermission
-    // (permission is declared in AndroidManifest.xml)
-    baslat();
-    return;
-  }
-
-  if (PLATFORM==="ios" &&
-      typeof DeviceMotionEvent!=="undefined" &&
-      typeof DeviceMotionEvent.requestPermission==="function") {
-    DeviceMotionEvent.requestPermission()
-      .then(s => s==="granted" ? baslat() : log("iOS izin verilmedi!"))
-      .catch(e => log("iOS izin hatası: "+e));
-    return;
-  }
-
-  baslat();
-}
-
-function durdur() {
-  aktif=false;
-  if (listener)    { window.removeEventListener("devicemotion",listener,true); listener=null; }
-  if (capListener) { capListener.remove(); capListener=null; }
-  document.getElementById("status-dot").classList.remove("active");
-  log("Durduruldu.");
-  document.getElementById("btn-durdur").style.display="none";
-  document.getElementById("btn-devam").style.display="flex";
-  document.getElementById("btn-yeniden").style.display="flex";
-}
-
-function devamEt() {
-  aktif=true;
-  document.getElementById("status-dot").classList.add("active");
-  log("Sensörler aktif...");
-  document.getElementById("btn-durdur").style.display="flex";
-  document.getElementById("btn-devam").style.display="none";
-  document.getElementById("btn-yeniden").style.display="flex";
-  if (PLATFORM==="capacitor") baslat_capacitor();
-  else baslat_web();
-}
-
-function yenidenBaslat() {
-  if (listener)    { window.removeEventListener("devicemotion",listener,true); listener=null; }
-  if (capListener) { capListener.remove(); capListener=null; }
-  sureler={yurume:0,kosma:0,ziplama:0,merdiven:0,oturma:0};
-  oturmaSayac=0; mevcutTahmin=null; buffer=[]; tahminGecmisi=[];
-  hpfDurum={x:0,y:0,z:0}; hpfBaslatildi=false;
-  lpfDurum={x:0,y:0,z:0}; lpfBaslatildi=false;
-  histerezisAday=null; histerezisKarsilasma=0;
-
-  document.getElementById("tc-value").className="tc-value idle";
-  document.getElementById("tc-value").textContent="BEKLENİYOR";
-  document.getElementById("tc-emoji").textContent="⏳";
-  document.getElementById("uyari").style.display="none";
-  document.getElementById("conf-bar").style.width="0%";
-  document.getElementById("conf-label").textContent="GÜVEN: –";
-  document.querySelectorAll(".akt-card").forEach(k=>k.classList.remove("aktif"));
-  ["yurume","kosma","ziplama","merdiven","oturma"].forEach(k=>{
-    const el=document.getElementById("t-"+k); if(el)el.textContent="0s";
-  });
-  ["ham-x","ham-y","ham-z","dbg-mag","dbg-delta","dbg-state"].forEach(id=>{
-    document.getElementById(id).textContent="–";
-  });
-  baslat();
-}
-
-// Update overlay text per platform
-(function(){
-  const sub = document.getElementById("overlay-sub");
-  if (PLATFORM==="android")   sub.textContent="İvmeölçer sensörüne erişim için başlat butonuna bas.";
-  if (PLATFORM==="capacitor") sub.textContent="Uygulama sensör iznine ihtiyaç duyuyor. Başlatmak için butona bas.";
-  if (PLATFORM==="ios")       sub.textContent="iOS sensör izni gerekli. Başlatmak için butona bas.";
-})();
-</script>
 </body>
 </html>
