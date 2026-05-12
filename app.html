@@ -327,6 +327,9 @@
 // ════════════════════════════════════════════════════════════════════
 //  AYARLAR VE DEĞİŞKENLER
 // ════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
+//  AYARLAR VE DEĞİŞKENLER
+// ════════════════════════════════════════════════════════════════════
 const SINIFLAR = ["yurume", "kosma", "ziplama", "merdiven", "oturma"];
 const META = {
     yurume: { emoji: "🚶", label: "YÜRÜME" },
@@ -346,13 +349,15 @@ let tahminGecmisi = [];
 
 let histerezisAday = null;
 let histerezisKarsilasma = 0;
-const HYSTERESIS_FRAMES = 2;
-const SMOOTH_WINDOW = 5;
-const WINDOW_SIZE = 30;
+
+// [HIZLANDIRILMIŞ AYARLAR]
+const HYSTERESIS_FRAMES = 2; // 3'ten 2'ye düştü (Hızlı geçiş)
+const SMOOTH_WINDOW = 5;      // 10'dan 5'e düştü (Tepki süresi arttı)
+const WINDOW_SIZE = 30;       // 50'den 30'a düştü (Daha sık analiz)
 const OTURMA_LIMIT = 600;
 
 // ════════════════════════════════════════════════════════════════════
-//  TAHMİN MOTORU (HATASIZ VERSİYON)
+//  TAHMİN MOTORU (HATASIZ VE HIZLI)
 // ════════════════════════════════════════════════════════════════════
 function tahminEt(data) {
     try {
@@ -361,6 +366,7 @@ function tahminEt(data) {
         const n = data.length;
         const magnitudes = data.map(d => d.mag);
 
+        // 1. İstatistikler
         const mean = magnitudes.reduce((a, b) => a + b, 0) / n;
         const max = Math.max(...magnitudes);
         const min = Math.min(...magnitudes);
@@ -369,16 +375,20 @@ function tahminEt(data) {
         const sorted = [...magnitudes].sort((a, b) => a - b);
         const median = sorted[Math.floor(n / 2)];
 
-        // Debug için ekranda gör (Düzeltme yaparken işine yarar)
+        // Debug değerlerini ekrana bas (STD takibi için)
         document.getElementById("dbg-delta").textContent = std.toFixed(2);
+        document.getElementById("dbg-mag").textContent = mean.toFixed(2);
 
-        // 1. Durma/Oturma Kontrolü (Hassaslaştırdık)
-        if (std < 0.15) { // 0.08'den 0.15'e çıkardık, daha rahat oturma der
+        // 2. Durma/Oturma Kontrolü (Keskin Ayar)
+        if (std < 0.15) {
+            document.getElementById("dbg-state").textContent = "SABIT";
             gosterTahmin(histerezisFiltrele(smoothedTahmin("oturma")));
             return;
         }
 
-        // 2. Model Tahmini
+        document.getElementById("dbg-state").textContent = "HAREKETLI";
+
+        // 3. Model Tahmini
         const input = [mean, std, max, min, range, median];
         if (typeof score === "function") {
             const skorlar = score(input);
@@ -389,32 +399,12 @@ function tahminEt(data) {
 
             let hammTahmin = SINIFLAR[maxIdx];
 
-            // 3. Cepte Yürürken Zıplama Algılama Filtresi
-            // Zıplama genellikle std > 4.5 ve max > 20 gibi değerler üretir.
+            // [FILTRE] "Yalancı Zıplama" Engelleme
+            // Sert yürüyüşü zıplama sanmasın diye STD kontrolü
             if (hammTahmin === "ziplama" && std < 4.0) {
                 hammTahmin = "yurume";
             }
-            
-            // 4. Sonucu Yazdır
-            updateConfBar(skorlar[maxIdx], hammTahmin);
-            const sonuc = histerezisFiltrele(smoothedTahmin(hammTahmin));
-            if (sonuc) gosterTahmin(sonuc);
-        }
-    } catch (e) {
-        console.error("Tahmin Hatası:", e);
-    }
-}
-        // 3. Model Girişi (Python sırasıyla: mean, std, max, min, range, median)
-        const input = [mean, std, max, min, range, median];
 
-        if (typeof score === "function") {
-            const skorlar = score(input);
-            let maxIdx = 0;
-            for (let i = 1; i < skorlar.length; i++) {
-                if (skorlar[i] > skorlar[maxIdx]) maxIdx = i;
-            }
-
-            const hammTahmin = SINIFLAR[maxIdx];
             updateConfBar(skorlar[maxIdx], hammTahmin);
             const sonuc = histerezisFiltrele(smoothedTahmin(hammTahmin));
             if (sonuc) gosterTahmin(sonuc);
@@ -425,7 +415,7 @@ function tahminEt(data) {
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  YARDIMCI FONKSİYONLAR
+//  YARDIMCI SİSTEMLER
 // ════════════════════════════════════════════════════════════════════
 function smoothedTahmin(yeniTahmin) {
     tahminGecmisi.push(yeniTahmin);
@@ -433,7 +423,9 @@ function smoothedTahmin(yeniTahmin) {
     const sayac = {};
     for (const t of tahminGecmisi) sayac[t] = (sayac[t] || 0) + 1;
     let maxK = tahminGecmisi[0], maxV = 0;
-    for (const [k, v] of Object.entries(sayac)) { if (v > maxV) { maxV = v; maxK = k; } }
+    for (const [k, v] of Object.entries(sayac)) { 
+        if (v > maxV) { maxV = v; maxK = k; } 
+    }
     return maxK;
 }
 
@@ -449,25 +441,24 @@ function histerezisFiltrele(yeniTahmin) {
 }
 
 function gosterTahmin(tahmin) {
-    if (!tahmin || mevcutTahmin === tahmin) {
-        // Zamanı yine de sayalım
-        if(tahmin) {
-            sureler[tahmin]++;
-            const tEl = document.getElementById("t-" + tahmin);
-            if (tEl) tEl.textContent = Math.floor(sureler[tahmin]/2) + "s";
-        }
-        return;
+    if (!tahmin) return;
+
+    if (mevcutTahmin !== tahmin) {
+        document.querySelectorAll(".akt-card").forEach(k => k.classList.remove("aktif"));
+        const yeniKart = document.getElementById("kart-" + tahmin);
+        if (yeniKart) yeniKart.classList.add("aktif");
+
+        const m = META[tahmin] || {};
+        document.getElementById("tc-value").className = "tc-value";
+        document.getElementById("tc-value").textContent = m.label || tahmin.toUpperCase();
+        document.getElementById("tc-emoji").textContent = m.emoji || "❓";
+        mevcutTahmin = tahmin;
     }
 
-    document.querySelectorAll(".akt-card").forEach(k => k.classList.remove("aktif"));
-    const yeniKart = document.getElementById("kart-" + tahmin);
-    if (yeniKart) yeniKart.classList.add("aktif");
-
-    const m = META[tahmin] || {};
-    document.getElementById("tc-value").className = "tc-value";
-    document.getElementById("tc-value").textContent = m.label || tahmin.toUpperCase();
-    document.getElementById("tc-emoji").textContent = m.emoji || "❓";
-    mevcutTahmin = tahmin;
+    // Saniye sayacı (yaklaşık her saniye 2 kez buraya girer)
+    sureler[tahmin] = (sureler[tahmin] || 0) + 0.5;
+    const tEl = document.getElementById("t-" + tahmin);
+    if (tEl) tEl.textContent = Math.floor(sureler[tahmin]) + "s";
 }
 
 function updateConfBar(pct, tahmin) {
@@ -479,15 +470,16 @@ function updateConfBar(pct, tahmin) {
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  SENSÖR VE BAŞLATMA
+//  BAŞLATMA VE SENSÖR
 // ════════════════════════════════════════════════════════════════════
 function izinAlVeBaslat() {
     const ov = document.getElementById("start-overlay");
     ov.classList.add("hidden");
+    setTimeout(() => ov.style.display = "none", 400);
     
     if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
         DeviceMotionEvent.requestPermission()
-            .then(s => s === "granted" ? baslat() : alert("İzin verilmedi!"))
+            .then(s => s === "granted" ? baslat() : alert("Sensör izni reddedildi!"))
             .catch(e => alert("Hata: " + e));
     } else {
         baslat();
@@ -495,11 +487,18 @@ function izinAlVeBaslat() {
 }
 
 function baslat() {
+    if (typeof score === "undefined") {
+        alert("Model yüklenemedi! model.js dosyasını kontrol et.");
+        return;
+    }
     aktif = true;
+    log("Sistem Aktif...");
+    document.getElementById("status-dot").classList.add("active");
+
     window.addEventListener("devicemotion", (e) => {
         if (!aktif) return;
         const acc = e.accelerationIncludingGravity || e.acceleration;
-        if (!acc) return;
+        if (!acc || acc.x === null) return;
 
         const mag = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
         
@@ -514,9 +513,9 @@ function baslat() {
             buffer = [];
         }
     }, true);
-    document.getElementById("status-dot").classList.add("active");
-    document.getElementById("durum").textContent = "SİSTEM AKTİF";
 }
+
+function log(m) { document.getElementById("durum").textContent = m; }
 </script>
 </body>
 </html>
