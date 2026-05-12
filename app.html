@@ -248,7 +248,7 @@
 
   <!-- TOPBAR -->
   <div class="topbar">
-    <div class="topbar-logo">Hareket<span>Takibi</span></div>
+    <div class="topbar-logo" onclick="window.location.href='index.html'" style="cursor:pointer;">Hareket<span>Takibi</span></div>
     <a href="index.html" class="topbar-back">← Ana Sayfa</a>
   </div>
 
@@ -536,9 +536,10 @@ function devamEt() {
   aktif = true;
   document.getElementById("status-dot").classList.add("active");
   log("Sensörler aktif...");
+  // ✅ Devam basınca da birleş (tek Durdur butonu göster)
   document.getElementById("btn-durdur").style.display  = "flex";
   document.getElementById("btn-devam").style.display   = "none";
-  document.getElementById("btn-yeniden").style.display = "flex";
+  document.getElementById("btn-yeniden").style.display = "none";
 }
 
 function yenidenBaslat() {
