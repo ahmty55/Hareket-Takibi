@@ -320,6 +320,11 @@
       <div class="debug-box"><div class="debug-axis">STD MAG</div><div class="debug-val" id="dbg-delta">–</div></div>
       <div class="debug-box"><div class="debug-axis">DURUM</div><div class="debug-val" id="dbg-state">–</div></div>
     </div>
+    <div class="controls">
+    <button onclick="durdur()" id="btn-durdur">Durdur</button>
+    <button onclick="devamEt()" id="btn-devam" style="display:none;">Devam Et</button>
+    <button onclick="sifirla()" id="btn-sifirla">Yeniden Başlat</button>
+</div>
 
   </div>
 
@@ -512,6 +517,9 @@ function baslat() {
         const acc = e.accelerationIncludingGravity || e.acceleration;
         if (!acc || acc.x === null) return;
 
+    document.getElementById("btn-durdur").style.display = "inline-block";
+    document.getElementById("btn-devam").style.display = "none";
+
         const mag = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
         
         document.getElementById("ham-x").textContent = acc.x.toFixed(2);
@@ -528,6 +536,57 @@ function baslat() {
 }
 
 function log(m) { document.getElementById("durum").textContent = m; }
+
+// 1. DURDURMA FONKSİYONU
+function durdur() {
+    aktif = false; // Sensör verisi akmaya devam etse de işlenmeyecek
+    document.getElementById("status-dot").classList.remove("active");
+    document.getElementById("durum").textContent = "SİSTEM DURDURULDU";
+    
+    // Buton görünümlerini ayarla
+    document.getElementById("btn-durdur").style.display = "none";
+    document.getElementById("btn-devam").style.display = "inline-block";
+}
+
+// 2. DEVAM ETME FONKSİYONU
+function devamEt() {
+    aktif = true;
+    document.getElementById("status-dot").classList.add("active");
+    document.getElementById("durum").textContent = "SİSTEM AKTİF";
+    
+    // Buton görünümlerini ayarla
+    document.getElementById("btn-durdur").style.display = "inline-block";
+    document.getElementById("btn-devam").style.display = "none";
+}
+
+// 3. SIFIRLA / YENİDEN BAŞLAT
+function sifirla() {
+    // Tüm süreleri sıfırla
+    for (let key in sureler) {
+        sureler[key] = 0;
+        const tEl = document.getElementById("t-" + key);
+        if (tEl) tEl.textContent = "0s";
+    }
+    
+    // Buffer ve tahminleri temizle
+    buffer = [];
+    mevcutTahmin = null;
+    tahminGecmisi = [];
+    
+    // Kartlardaki aktiflik efektini kaldır
+    document.querySelectorAll(".akt-card").forEach(k => k.classList.remove("aktif"));
+    
+    // Ana ekranı resetle
+    document.getElementById("tc-value").textContent = "HAZIR";
+    document.getElementById("tc-emoji").textContent = "⏱️";
+    document.getElementById("conf-bar").style.width = "0%";
+    
+    log("Sistem Sıfırlandı!");
+    
+    // Eğer durdurulmuşsa otomatik devam ettir
+    if (!aktif) devamEt();
+}
+  
 </script>
 </body>
 </html>
