@@ -346,9 +346,9 @@ let tahminGecmisi = [];
 
 let histerezisAday = null;
 let histerezisKarsilasma = 0;
-const HYSTERESIS_FRAMES = 3;
-const SMOOTH_WINDOW = 10;
-const WINDOW_SIZE = 50;
+const HYSTERESIS_FRAMES = 2;
+const SMOOTH_WINDOW = 5;
+const WINDOW_SIZE = 30;
 const OTURMA_LIMIT = 600;
 
 // ════════════════════════════════════════════════════════════════════
@@ -361,7 +361,6 @@ function tahminEt(data) {
         const n = data.length;
         const magnitudes = data.map(d => d.mag);
 
-        // 1. İstatistikleri Hesapla
         const mean = magnitudes.reduce((a, b) => a + b, 0) / n;
         const max = Math.max(...magnitudes);
         const min = Math.min(...magnitudes);
@@ -370,13 +369,41 @@ function tahminEt(data) {
         const sorted = [...magnitudes].sort((a, b) => a - b);
         const median = sorted[Math.floor(n / 2)];
 
-        // 2. Sabit Durum Koruması (Merdiven Engelleme)
-        if (std < 0.08) {
-            document.getElementById("dbg-state").textContent = "SABIT";
+        // Debug için ekranda gör (Düzeltme yaparken işine yarar)
+        document.getElementById("dbg-delta").textContent = std.toFixed(2);
+
+        // 1. Durma/Oturma Kontrolü (Hassaslaştırdık)
+        if (std < 0.15) { // 0.08'den 0.15'e çıkardık, daha rahat oturma der
             gosterTahmin(histerezisFiltrele(smoothedTahmin("oturma")));
-            return; // İşte bu return artık fonksiyon içinde olduğu için hata vermez
+            return;
         }
 
+        // 2. Model Tahmini
+        const input = [mean, std, max, min, range, median];
+        if (typeof score === "function") {
+            const skorlar = score(input);
+            let maxIdx = 0;
+            for (let i = 1; i < skorlar.length; i++) {
+                if (skorlar[i] > skorlar[maxIdx]) maxIdx = i;
+            }
+
+            let hammTahmin = SINIFLAR[maxIdx];
+
+            // 3. Cepte Yürürken Zıplama Algılama Filtresi
+            // Zıplama genellikle std > 4.5 ve max > 20 gibi değerler üretir.
+            if (hammTahmin === "ziplama" && std < 4.0) {
+                hammTahmin = "yurume";
+            }
+            
+            // 4. Sonucu Yazdır
+            updateConfBar(skorlar[maxIdx], hammTahmin);
+            const sonuc = histerezisFiltrele(smoothedTahmin(hammTahmin));
+            if (sonuc) gosterTahmin(sonuc);
+        }
+    } catch (e) {
+        console.error("Tahmin Hatası:", e);
+    }
+}
         // 3. Model Girişi (Python sırasıyla: mean, std, max, min, range, median)
         const input = [mean, std, max, min, range, median];
 
