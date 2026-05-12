@@ -134,8 +134,7 @@
       letter-spacing:-1px; text-transform:uppercase; color:var(--green);
       transition: color .3s; line-height:1;
     }
-    .tc-value.idle    { font-size:20px; font-weight:300; color:var(--dim); letter-spacing:4px; }
-    .tc-value.belirsiz { font-size:28px; font-weight:300; color:var(--warn); letter-spacing:2px; }
+    .tc-value.idle { font-size:20px; font-weight:300; color:var(--dim); letter-spacing:4px; }
 
     /* Confidence bar */
     .conf-bar-wrap {
@@ -235,45 +234,6 @@
       transition:transform .15s, box-shadow .2s;
     }
     .so-btn:hover { transform:translateY(-2px); box-shadow:0 0 50px rgba(57,224,110,.5); }
-
-.control-box {
-    width: 100%;
-    margin-bottom: 15px;
-}
-
-.big-btn {
-    width: 100%;
-    padding: 15px;
-    font-family: 'JetBrains Mono', monospace; /* Senin temana uygun font */
-    font-size: 1.2rem;
-    font-weight: bold;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-}
-
-/* Yan yana duran buton grubu */
-.split-btn-group {
-    display: flex;
-    gap: 10px;
-}
-
-.split-btn-group .big-btn {
-    flex: 1; /* İkisinin de eşit genişlikte olmasını sağlar */
-}
-
-/* Renkler */
-.red-btn { background-color: #ff4757; color: white; border-bottom: 4px solid #ff1f33; }
-.green-btn { background-color: #2ed573; color: white; border-bottom: 4px solid #21b35c; }
-.gray-btn { background-color: #57606f; color: white; border-bottom: 4px solid #2f3542; }
-
-.big-btn:active { transform: translateY(2px); border-bottom-width: 2px; }
-    
   </style>
 </head>
 <body>
@@ -298,11 +258,12 @@
       <div class="status-text" id="durum">Başlatılıyor...</div>
     </div>
 
+    <!-- ✅ TEK kontrol grubu (BU SEFER DOĞRU!) -->
     <div class="controls">
-      <button class="btn-ctrl red"   id="btn-durdur"  onclick="durdur()"      style="display:none">
+      <button class="btn-ctrl red"   id="btn-durdur"  onclick="durdur()"        style="display:flex">
         <span class="ic">⏹</span>Durdur
       </button>
-      <button class="btn-ctrl green" id="btn-devam"   onclick="devamEt()"     style="display:none">
+      <button class="btn-ctrl green" id="btn-devam"   onclick="devamEt()"       style="display:none">
         <span class="ic">▶</span>Devam
       </button>
       <button class="btn-ctrl green" id="btn-yeniden" onclick="yenidenBaslat()" style="display:none">
@@ -359,27 +320,9 @@
       <div class="debug-box"><div class="debug-axis">STD MAG</div><div class="debug-val" id="dbg-delta">–</div></div>
       <div class="debug-box"><div class="debug-axis">DURUM</div><div class="debug-val" id="dbg-state">–</div></div>
     </div>
-    <div id="main-control-container" class="control-box">
-    <button onclick="durdur()" id="btn-ust-durdur" class="big-btn red-btn">
-        <span class="icon">■</span> DURDUR
-    </button>
-
-    <div id="btn-ust-grup" class="split-btn-group" style="display: none;">
-        <button onclick="devamEt()" class="big-btn green-btn">
-            <span class="icon">▶</span> DEVAM ET
-        </button>
-        <button onclick="sifirla()" class="big-btn gray-btn">
-            <span class="icon">↺</span> YENİDEN BAŞLAT
-        </button>
-    </div>
-</div>
-
   </div>
 
 <script>
-// ════════════════════════════════════════════════════════════════════
-//  AYARLAR VE DEĞİŞKENLER
-// ════════════════════════════════════════════════════════════════════
 // ════════════════════════════════════════════════════════════════════
 //  AYARLAR VE DEĞİŞKENLER
 // ════════════════════════════════════════════════════════════════════
@@ -394,7 +337,7 @@ const META = {
 
 let buffer = [];
 let aktif = false;
-let listener = null;
+let listener = null;  // ✅ Tanımlandı
 let mevcutTahmin = null;
 let oturmaSayac = 0;
 let sureler = { yurume: 0, kosma: 0, ziplama: 0, merdiven: 0, oturma: 0 };
@@ -404,13 +347,13 @@ let histerezisAday = null;
 let histerezisKarsilasma = 0;
 
 // [HIZLANDIRILMIŞ AYARLAR]
-const HYSTERESIS_FRAMES = 2; // 3'ten 2'ye düştü (Hızlı geçiş)
-const SMOOTH_WINDOW = 5;      // 10'dan 5'e düştü (Tepki süresi arttı)
-const WINDOW_SIZE = 30;       // 50'den 30'a düştü (Daha sık analiz)
+const HYSTERESIS_FRAMES = 2;
+const SMOOTH_WINDOW = 5;
+const WINDOW_SIZE = 30;
 const OTURMA_LIMIT = 600;
 
 // ════════════════════════════════════════════════════════════════════
-//  TAHMİN MOTORU (HATASIZ VE HIZLI)
+//  TAHMİN MOTORU
 // ════════════════════════════════════════════════════════════════════
 function tahminEt(data) {
     try {
@@ -430,7 +373,7 @@ function tahminEt(data) {
         document.getElementById("dbg-delta").textContent = std.toFixed(2);
         document.getElementById("dbg-mag").textContent = mean.toFixed(2);
 
-        // 1. OTURMA/SABİT DURMA (Eşik: 0.7 - Eldeki titremeyi de kapsar)
+        // OTURMA/SABİT DURMA
         if (std < 0.7) { 
             document.getElementById("dbg-state").textContent = "SABIT";
             gosterTahmin(histerezisFiltrele(smoothedTahmin("oturma")));
@@ -449,27 +392,18 @@ function tahminEt(data) {
 
             let hammTahmin = SINIFLAR[maxIdx];
 
-            // ════════════════════════════════════════════════════════════════════
-            //  MERDİVEN VE YÜRÜME AYIRICI (FINETUNING)
-            // ════════════════════════════════════════════════════════════════════
-
-            // DURUM A: Model merdiven dedi ama şiddet çok düşük -> Yürüme yap
+            // MERDİVEN VE YÜRÜME AYIRICI
             if (hammTahmin === "merdiven" && range < 3.5) {
                 hammTahmin = "yurume";
             }
 
-            // DURUM B: Model yürüme dedi ama şiddet (darbe) yüksek -> Merdiven'e yükselt
-            // Genellikle merdiven çıkarken STD 1.8 - 3.5 arası, Range ise 6 - 12 arasıdır.
             if (hammTahmin === "yurume" && std > 2.2 && range > 7.0) {
                 hammTahmin = "merdiven";
             }
 
-            // DURUM C: Zıplama Koruması
             if (hammTahmin === "ziplama" && std < 4.0) {
                 hammTahmin = "yurume";
             }
-
-            // ════════════════════════════════════════════════════════════════════
 
             updateConfBar(maxSkor, hammTahmin);
             const sonuc = histerezisFiltrele(smoothedTahmin(hammTahmin));
@@ -479,6 +413,7 @@ function tahminEt(data) {
         console.error("Tahmin Hatası:", e);
     }
 }
+
 // ════════════════════════════════════════════════════════════════════
 //  YARDIMCI SİSTEMLER
 // ════════════════════════════════════════════════════════════════════
@@ -520,7 +455,6 @@ function gosterTahmin(tahmin) {
         mevcutTahmin = tahmin;
     }
 
-    // Saniye sayacı (yaklaşık her saniye 2 kez buraya girer)
     sureler[tahmin] = (sureler[tahmin] || 0) + 0.5;
     const tEl = document.getElementById("t-" + tahmin);
     if (tEl) tEl.textContent = Math.floor(sureler[tahmin]) + "s";
@@ -560,13 +494,11 @@ function baslat() {
     log("Sistem Aktif...");
     document.getElementById("status-dot").classList.add("active");
 
-    window.addEventListener("devicemotion", (e) => {
+    // ✅ listener'ı düzgün atanıyor
+    listener = (e) => {
         if (!aktif) return;
         const acc = e.accelerationIncludingGravity || e.acceleration;
         if (!acc || acc.x === null) return;
-
-    document.getElementById("btn-durdur").style.display = "inline-block";
-    document.getElementById("btn-devam").style.display = "none";
 
         const mag = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
         
@@ -580,57 +512,80 @@ function baslat() {
             tahminEt([...buffer]);
             buffer = [];
         }
-    }, true);
+    };
+
+    window.addEventListener("devicemotion", listener, true);
 }
 
 function log(m) { document.getElementById("durum").textContent = m; }
 
+// ════════════════════════════════════════════════════════════════════
+// ✅ KONTROL FONKSİYONLARI — DOĞRU VERSIYONU
+// ════════════════════════════════════════════════════════════════════
+
 function durdur() {
-    aktif = false;
-    
-    // Görünümü Güncelle
-    document.getElementById("status-dot").classList.remove("active");
-    document.getElementById("durum").textContent = "SİSTEM DURDURULDU";
-    
-    // Üstteki butonları değiştir
-    document.getElementById("btn-ust-durdur").style.display = "none";
-    document.getElementById("btn-ust-grup").style.display = "flex";
+  aktif = false;
+  document.getElementById("status-dot").classList.remove("active");
+  log("Durduruldu...");
+  document.getElementById("btn-durdur").style.display  = "none";
+  document.getElementById("btn-devam").style.display   = "flex";
+  document.getElementById("btn-yeniden").style.display = "flex";
 }
 
 function devamEt() {
-    aktif = true;
-    
-    // Görünümü Güncelle
-    document.getElementById("status-dot").classList.add("active");
-    document.getElementById("durum").textContent = "SİSTEM AKTİF";
-    
-    // Üstteki butonları değiştir
-    document.getElementById("btn-ust-durdur").style.display = "flex";
-    document.getElementById("btn-ust-grup").style.display = "none";
+  aktif = true;
+  document.getElementById("status-dot").classList.add("active");
+  log("Sensörler aktif...");
+  document.getElementById("btn-durdur").style.display  = "flex";
+  document.getElementById("btn-devam").style.display   = "none";
+  document.getElementById("btn-yeniden").style.display = "flex";
 }
 
-function sifirla() {
-    // Tüm süreleri ve verileri sıfırla (Eski mantık)
-    for (let key in sureler) {
-        sureler[key] = 0;
-        const tEl = document.getElementById("t-" + key);
-        if (tEl) tEl.textContent = "0s";
-    }
-    
-    buffer = [];
-    mevcutTahmin = null;
-    tahminGecmisi = [];
-    
-    // Arayüzü temizle
-    document.querySelectorAll(".akt-card").forEach(k => k.classList.remove("aktif"));
-    document.getElementById("tc-value").textContent = "HAZIR";
-    document.getElementById("tc-emoji").textContent = "⏱️";
-    document.getElementById("conf-bar").style.width = "0%";
-    
-    // Yeniden başlatınca otomatik olarak "Devam Et" moduna geçsin (Sistem aktif olsun)
-    devamEt();
-    
-    console.log("Sistem sıfırlandı ve başlatıldı.");
+function yenidenBaslat() {
+  // ✅ listener var ise kaldır (artık listener tanımlandı)
+  if (listener) window.removeEventListener("devicemotion", listener, true);
+  
+  // ✅ Doğru variable isimleri
+  sureler       = { yurume:0, kosma:0, ziplama:0, merdiven:0, oturma:0 };
+  oturmaSayac   = 0;
+  mevcutTahmin  = null;
+  buffer        = [];
+  tahminGecmisi = [];
+  histerezisAday    = null;           // ✅ Doğru isim
+  histerezisKarsilasma = 0;           // ✅ Doğru isim
+
+  // UI sıfırla
+  document.getElementById("tc-value").className    = "tc-value idle";
+  document.getElementById("tc-value").textContent  = "BEKLENİYOR";
+  document.getElementById("tc-emoji").textContent   = "⏳";
+  document.getElementById("uyari").style.display    = "none";
+  document.getElementById("conf-bar").style.width   = "0%";
+  document.getElementById("conf-label").textContent = "GÜVEN: –";
+  
+  document.querySelectorAll(".akt-card").forEach(k => k.classList.remove("aktif"));
+  
+  ["yurume","kosma","ziplama","merdiven","oturma"].forEach(k => {
+    const el = document.getElementById("t-"+k);
+    if(el) el.textContent = "0s";
+  });
+  
+  ["ham-x","ham-y","ham-z"].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.textContent = "–";
+  });
+  
+  ["dbg-mag","dbg-delta","dbg-state"].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.textContent = "–";
+  });
+
+  // Butonları başlangıç durumuna getir
+  document.getElementById("btn-durdur").style.display  = "flex";
+  document.getElementById("btn-devam").style.display   = "none";
+  document.getElementById("btn-yeniden").style.display = "none";
+
+  // Sensörleri yeniden başlat
+  baslat();
 }
   
 </script>
