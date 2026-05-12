@@ -235,6 +235,45 @@
       transition:transform .15s, box-shadow .2s;
     }
     .so-btn:hover { transform:translateY(-2px); box-shadow:0 0 50px rgba(57,224,110,.5); }
+
+.control-box {
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+.big-btn {
+    width: 100%;
+    padding: 15px;
+    font-family: 'JetBrains Mono', monospace; /* Senin temana uygun font */
+    font-size: 1.2rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+/* Yan yana duran buton grubu */
+.split-btn-group {
+    display: flex;
+    gap: 10px;
+}
+
+.split-btn-group .big-btn {
+    flex: 1; /* İkisinin de eşit genişlikte olmasını sağlar */
+}
+
+/* Renkler */
+.red-btn { background-color: #ff4757; color: white; border-bottom: 4px solid #ff1f33; }
+.green-btn { background-color: #2ed573; color: white; border-bottom: 4px solid #21b35c; }
+.gray-btn { background-color: #57606f; color: white; border-bottom: 4px solid #2f3542; }
+
+.big-btn:active { transform: translateY(2px); border-bottom-width: 2px; }
+    
   </style>
 </head>
 <body>
@@ -320,10 +359,19 @@
       <div class="debug-box"><div class="debug-axis">STD MAG</div><div class="debug-val" id="dbg-delta">–</div></div>
       <div class="debug-box"><div class="debug-axis">DURUM</div><div class="debug-val" id="dbg-state">–</div></div>
     </div>
-    <div class="controls">
-    <button onclick="durdur()" id="btn-durdur">Durdur</button>
-    <button onclick="devamEt()" id="btn-devam" style="display:none;">Devam Et</button>
-    <button onclick="sifirla()" id="btn-sifirla">Yeniden Başlat</button>
+    <div id="main-control-container" class="control-box">
+    <button onclick="durdur()" id="btn-ust-durdur" class="big-btn red-btn">
+        <span class="icon">■</span> DURDUR
+    </button>
+
+    <div id="btn-ust-grup" class="split-btn-group" style="display: none;">
+        <button onclick="devamEt()" class="big-btn green-btn">
+            <span class="icon">▶</span> DEVAM ET
+        </button>
+        <button onclick="sifirla()" class="big-btn gray-btn">
+            <span class="icon">↺</span> YENİDEN BAŞLAT
+        </button>
+    </div>
 </div>
 
   </div>
@@ -537,54 +585,52 @@ function baslat() {
 
 function log(m) { document.getElementById("durum").textContent = m; }
 
-// 1. DURDURMA FONKSİYONU
 function durdur() {
-    aktif = false; // Sensör verisi akmaya devam etse de işlenmeyecek
+    aktif = false;
+    
+    // Görünümü Güncelle
     document.getElementById("status-dot").classList.remove("active");
     document.getElementById("durum").textContent = "SİSTEM DURDURULDU";
     
-    // Buton görünümlerini ayarla
-    document.getElementById("btn-durdur").style.display = "none";
-    document.getElementById("btn-devam").style.display = "inline-block";
+    // Üstteki butonları değiştir
+    document.getElementById("btn-ust-durdur").style.display = "none";
+    document.getElementById("btn-ust-grup").style.display = "flex";
 }
 
-// 2. DEVAM ETME FONKSİYONU
 function devamEt() {
     aktif = true;
+    
+    // Görünümü Güncelle
     document.getElementById("status-dot").classList.add("active");
     document.getElementById("durum").textContent = "SİSTEM AKTİF";
     
-    // Buton görünümlerini ayarla
-    document.getElementById("btn-durdur").style.display = "inline-block";
-    document.getElementById("btn-devam").style.display = "none";
+    // Üstteki butonları değiştir
+    document.getElementById("btn-ust-durdur").style.display = "flex";
+    document.getElementById("btn-ust-grup").style.display = "none";
 }
 
-// 3. SIFIRLA / YENİDEN BAŞLAT
 function sifirla() {
-    // Tüm süreleri sıfırla
+    // Tüm süreleri ve verileri sıfırla (Eski mantık)
     for (let key in sureler) {
         sureler[key] = 0;
         const tEl = document.getElementById("t-" + key);
         if (tEl) tEl.textContent = "0s";
     }
     
-    // Buffer ve tahminleri temizle
     buffer = [];
     mevcutTahmin = null;
     tahminGecmisi = [];
     
-    // Kartlardaki aktiflik efektini kaldır
+    // Arayüzü temizle
     document.querySelectorAll(".akt-card").forEach(k => k.classList.remove("aktif"));
-    
-    // Ana ekranı resetle
     document.getElementById("tc-value").textContent = "HAZIR";
     document.getElementById("tc-emoji").textContent = "⏱️";
     document.getElementById("conf-bar").style.width = "0%";
     
-    log("Sistem Sıfırlandı!");
+    // Yeniden başlatınca otomatik olarak "Devam Et" moduna geçsin (Sistem aktif olsun)
+    devamEt();
     
-    // Eğer durdurulmuşsa otomatik devam ettir
-    if (!aktif) devamEt();
+    console.log("Sistem sıfırlandı ve başlatıldı.");
 }
   
 </script>
