@@ -1,1156 +1,583 @@
 <!DOCTYPE html>
-
 <html lang="tr">
-
 <head>
-
   <meta charset="UTF-8" />
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <title> Canlı Hareket Takibi</title>
-
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
-
   <style>
-
     :root {
-
       --bg:      #070a0e;
-
       --surface: #0d1117;
-
       --lift:    #141c26;
-
       --border:  #1e2d3d;
-
       --line:    #243447;
-
       --green:   #39e06e;
-
       --green2:  #1aff6b;
-
       --blue:    #00b4d8;
-
       --red:     #ff4560;
-
       --text:    #dde6f0;
-
       --muted:   #5a7080;
-
       --dim:     #2e4057;
-
       --mono:    'Share Tech Mono', monospace;
-
       --head:    'Barlow Condensed', sans-serif;
-
     }
-
-
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-
-
     html { scroll-behavior: smooth; }
-
-
-
     body {
-
       font-family: var(--head);
-
       background: var(--bg);
-
       color: var(--text);
-
       overflow-x: hidden;
-
     }
-
-
-
-    /* ── scanline texture overlay ── */
 
     body::before {
-
       content: '';
-
       pointer-events: none;
-
       position: fixed; inset: 0; z-index: 9999;
-
       background: repeating-linear-gradient(
-
-        0deg,
-
-        transparent,
-
-        transparent 3px,
-
-        rgba(0,0,0,0.07) 3px,
-
-        rgba(0,0,0,0.07) 4px
-
+        0deg, transparent, transparent 3px,
+        rgba(0,0,0,0.07) 3px, rgba(0,0,0,0.07) 4px
       );
-
     }
 
-
-
-    /* ─────────────── NAVBAR ─────────────── */
-
+    /* NAVBAR */
     nav {
-
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-
       display: flex; align-items: center; justify-content: space-between;
-
       padding: 0 6%; height: 64px;
-
       background: rgba(7,10,14,0.85);
-
       backdrop-filter: blur(12px);
-
       border-bottom: 1px solid var(--border);
-
     }
-
-
 
     .nav-logo {
-
       font-family: var(--mono);
-
       font-size: 14px;
-
       color: var(--green);
-
       letter-spacing: 2px;
-
       text-transform: uppercase;
-
     }
-
     .nav-logo span { color: var(--muted); }
 
-
-
-    .nav-links {
-
-      display: flex; gap: 32px; list-style: none;
-
-    }
-
+    .nav-links { display: flex; gap: 32px; list-style: none; }
     .nav-links a {
-
       font-family: var(--head);
-
       font-weight: 600;
-
       font-size: 13px;
-
       letter-spacing: 1.5px;
-
       text-transform: uppercase;
-
       color: var(--muted);
-
       text-decoration: none;
-
       transition: color 0.2s;
-
     }
-
     .nav-links a:hover { color: var(--text); }
 
-
-
     .nav-cta {
-
       font-family: var(--mono);
-
       font-size: 12px;
-
       letter-spacing: 1px;
-
       padding: 8px 18px;
-
       border: 1px solid var(--green);
-
       color: var(--green);
-
       background: transparent;
-
       border-radius: 4px;
-
       cursor: pointer;
-
       text-decoration: none;
-
       transition: background 0.2s, color 0.2s;
-
     }
-
     .nav-cta:hover { background: var(--green); color: #000; }
 
-
-
-    /* ─────────────── HERO ─────────────── */
-
+    /* HERO */
     header {
-
       min-height: 100vh;
-
       display: flex; flex-direction: column;
-
       justify-content: center; align-items: flex-start;
-
       padding: 100px 6% 80px;
-
       position: relative;
-
       overflow: hidden;
-
     }
-
-
-
-    /* background grid */
-
     header::before {
-
       content: '';
-
       position: absolute; inset: 0;
-
       background-image:
-
         linear-gradient(var(--border) 1px, transparent 1px),
-
         linear-gradient(90deg, var(--border) 1px, transparent 1px);
-
       background-size: 60px 60px;
-
       opacity: 0.35;
-
     }
-
-
-
-    /* glowing orb */
-
     header::after {
-
       content: '';
-
       position: absolute;
-
       top: -100px; right: -100px;
-
       width: 600px; height: 600px;
-
       border-radius: 50%;
-
       background: radial-gradient(circle, #39e06e18 0%, transparent 70%);
-
       pointer-events: none;
-
     }
-
-
 
     .hero-tag {
-
       font-family: var(--mono);
-
       font-size: 11px;
-
       letter-spacing: 3px;
-
       text-transform: uppercase;
-
       color: var(--green);
-
       background: rgba(57,224,110,0.08);
-
       border: 1px solid rgba(57,224,110,0.25);
-
       padding: 5px 12px;
-
       border-radius: 2px;
-
       margin-bottom: 28px;
-
       animation: fadeUp 0.6s ease both;
-
     }
-
-
 
     .hero-h1 {
-
       font-family: var(--head);
-
       font-size: clamp(52px, 10vw, 110px);
-
       font-weight: 800;
-
       line-height: 0.9;
-
       letter-spacing: -2px;
-
       text-transform: uppercase;
-
       color: var(--text);
-
       max-width: 900px;
-
       animation: fadeUp 0.7s 0.1s ease both;
-
     }
-
-
-
-    .hero-h1 em {
-
-      font-style: normal;
-
-      color: var(--green);
-
-      position: relative;
-
-    }
-
-
+    .hero-h1 em { font-style: normal; color: var(--green); position: relative; }
 
     .hero-sub {
-
       font-family: var(--head);
-
       font-weight: 300;
-
       font-size: clamp(16px, 2.5vw, 22px);
-
       color: var(--muted);
-
       max-width: 540px;
-
       line-height: 1.5;
-
       margin-top: 24px;
-
       animation: fadeUp 0.8s 0.2s ease both;
-
     }
-
-
 
     .hero-actions {
-
       display: flex; gap: 16px; flex-wrap: wrap;
-
       margin-top: 44px;
-
       animation: fadeUp 0.9s 0.35s ease both;
-
     }
-
-
 
     .btn-launch {
-
       display: inline-flex; align-items: center; gap: 10px;
-
       padding: 16px 36px;
-
       background: var(--green);
-
       color: #000;
-
       font-family: var(--head);
-
       font-weight: 800;
-
       font-size: 16px;
-
       letter-spacing: 1px;
-
       text-transform: uppercase;
-
       text-decoration: none;
-
       border-radius: 4px;
-
       border: none; cursor: pointer;
-
       transition: transform 0.15s, box-shadow 0.2s;
-
       box-shadow: 0 0 30px rgba(57,224,110,0.25);
-
     }
-
-    .btn-launch:hover {
-
-      transform: translateY(-2px);
-
-      box-shadow: 0 0 50px rgba(57,224,110,0.4);
-
-    }
-
-
+    .btn-launch:hover { transform: translateY(-2px); box-shadow: 0 0 50px rgba(57,224,110,0.4); }
 
     .btn-apk {
-
       display: inline-flex; align-items: center; gap: 10px;
-
       padding: 16px 36px;
-
       background: transparent;
-
       color: var(--text);
-
       font-family: var(--head);
-
       font-weight: 600;
-
       font-size: 16px;
-
       letter-spacing: 1px;
-
       text-transform: uppercase;
-
       text-decoration: none;
-
       border-radius: 4px;
-
       border: 1px solid var(--line);
-
       cursor: pointer;
-
       transition: border-color 0.2s, color 0.2s;
-
     }
-
     .btn-apk:hover { border-color: var(--blue); color: var(--blue); }
 
-
-
-    /* live ticker */
-
     .hero-ticker {
-
       font-family: var(--mono);
-
       font-size: 11px;
-
       color: var(--muted);
-
       margin-top: 56px;
-
       display: flex; gap: 32px;
-
       animation: fadeUp 1s 0.5s ease both;
-
     }
-
     .ticker-item { display: flex; flex-direction: column; gap: 4px; }
-
     .ticker-val { font-size: 22px; color: var(--text); font-weight: 400; }
-
     .ticker-val.green { color: var(--green); }
 
-
-
-/* ─────────────── FEATURES (2x2 YAN YANA TASARIM) ─────────────── */
-
-#nasil-calisir {
-
-  padding: 100px 6%;
-
-  border-top: 1px solid var(--border);
-
-}
-
-
-
-/* Başlık ve Grid'i yan yana getiren kapsayıcı */
-
-.features-container {
-
-  display: flex;
-
-  justify-content: space-between;
-
-  align-items: flex-start;
-
-  gap: 60px; /* Başlık ile kutular arasındaki profesyonel boşluk */
-
-}
-
-
-
-.section-eyebrow {
-
-  font-family: var(--mono);
-
-  font-size: 11px;
-
-  letter-spacing: 3px;
-
-  color: var(--green);
-
-  text-transform: uppercase;
-
-  margin-bottom: 12px;
-
-}
-
-
-
-.section-title {
-
-  font-family: var(--head);
-
-  font-size: clamp(32px, 4vw, 54px); /* Yan yana oldukları için biraz optimize edildi */
-
-  font-weight: 800;
-
-  text-transform: uppercase;
-
-  letter-spacing: -1px;
-
-  color: var(--text);
-
-  margin-bottom: 0; 
-
-  flex: 0 0 35%; /* Başlığın sol tarafı kaplama oranı */
-
-  line-height: 1.1;
-
-}
-
-
-
-.features-grid {
-
-  flex: 1; /* Kalan alanın tamamını sağ tarafa ayırır */
-
-  display: grid;
-
-  grid-template-columns: repeat(2, 1fr); /* Tam istediğin gibi 2 sütun (2x2) */
-
-  gap: 1px;
-
-  background: var(--border);
-
-  border: 1px solid var(--border);
-
-  border-radius: 8px;
-
-  overflow: hidden;
-
-}
-
-
-
-.feature-cell {
-
-  background: var(--surface);
-
-  padding: 36px 32px;
-
-  transition: background 0.2s;
-
-}
-
-.feature-cell:hover { background: var(--lift); }
-
-
-
-.feature-icon {
-
-  font-size: 28px;
-
-  margin-bottom: 16px;
-
-}
-
-
-
-.feature-label {
-
-  font-family: var(--mono);
-
-  font-size: 10px;
-
-  letter-spacing: 2px;
-
-  color: var(--muted);
-
-  text-transform: uppercase;
-
-  margin-bottom: 8px;
-
-}
-
-
-
-.feature-title {
-
-  font-family: var(--head);
-
-  font-size: 20px;
-
-  font-weight: 800;
-
-  text-transform: uppercase;
-
-  color: var(--text);
-
-  margin-bottom: 10px;
-
-  letter-spacing: 0.5px;
-
-}
-
-
-
-.feature-desc {
-
-  font-family: var(--head);
-
-  font-weight: 300;
-
-  font-size: 14px;
-
-  color: var(--muted);
-
-  line-height: 1.5;
-
-}
-
-
-
-/* 📱 Mobil Uyumluluk - Tablet ve Telefondan bakınca dağılmasın */
-
-@media (max-width: 1024px) {
-
-  .features-container {
-
-    flex-direction: column; /* Tablette alt alta geçer */
-
-    gap: 40px;
-
-  }
-
-  .section-title {
-
-    flex: none;
-
-    max-width: 100%;
-
-  }
-
-}
-
-
-
-@media (max-width: 650px) {
-
-  .features-grid {
-
-    grid-template-columns: 1fr; /* Telefondan bakınca kutular tek sıra olur */
-
-  }
-
-}
-
-
-
-    /* ─────────────── AKTİVİTELER ─────────────── */
-
-    #aktiviteler {
-
-      padding: 100px 6%;
-
-      border-top: 1px solid var(--border);
-
+    /* FEATURES */
+    #nasil-calisir { padding: 100px 6%; border-top: 1px solid var(--border); }
+
+    .features-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 60px;
     }
 
+    .section-eyebrow {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: var(--green);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
 
+    .section-title {
+      font-family: var(--head);
+      font-size: clamp(32px, 4vw, 54px);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: -1px;
+      color: var(--text);
+      margin-bottom: 0;
+      flex: 0 0 35%;
+      line-height: 1.1;
+    }
+
+    .features-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .feature-cell { background: var(--surface); padding: 36px 32px; transition: background 0.2s; }
+    .feature-cell:hover { background: var(--lift); }
+    .feature-icon { font-size: 28px; margin-bottom: 16px; }
+    .feature-label { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+    .feature-title { font-family: var(--head); font-size: 20px; font-weight: 800; text-transform: uppercase; color: var(--text); margin-bottom: 10px; letter-spacing: 0.5px; }
+    .feature-desc { font-family: var(--head); font-weight: 300; font-size: 14px; color: var(--muted); line-height: 1.5; }
+
+    @media (max-width: 1024px) {
+      .features-container { flex-direction: column; gap: 40px; }
+      .section-title { flex: none; max-width: 100%; }
+    }
+    @media (max-width: 650px) {
+      .features-grid { grid-template-columns: 1fr; }
+    }
+
+    /* AKTİVİTELER */
+    #aktiviteler { padding: 100px 6%; border-top: 1px solid var(--border); }
 
     .aktivite-scroll {
-
       display: flex; gap: 12px;
-
       overflow-x: auto;
-
       padding-bottom: 8px;
-
       scrollbar-width: none;
-
     }
-
     .aktivite-scroll::-webkit-scrollbar { display: none; }
 
-
-
     .akt-pill {
-
       flex-shrink: 0;
-
       display: flex; flex-direction: column; align-items: center;
-
       gap: 8px;
-
       padding: 24px 28px;
-
       background: var(--surface);
-
       border: 1px solid var(--border);
-
       border-radius: 8px;
-
       min-width: 120px;
-
       transition: border-color 0.2s, transform 0.2s;
-
     }
-
     .akt-pill:hover { border-color: var(--green); transform: translateY(-4px); }
-
     .akt-pill .icon { font-size: 28px; }
-
     .akt-pill .name {
-
       font-family: var(--head);
-
       font-weight: 600;
-
       font-size: 13px;
-
       letter-spacing: 1px;
-
       text-transform: uppercase;
-
       color: var(--muted);
-
     }
 
-
-
-    /* ─────────────── APK SECTION ─────────────── */
-
+    /* APK SECTION */
     #apk {
-
-      margin: 0 6% 100px;
-
+      margin: 0 6% 0;
       padding: 60px 48px;
-
       background: linear-gradient(135deg, #0d1a0f, #0d1117);
-
       border: 1px solid rgba(57,224,110,0.2);
-
       border-radius: 12px;
-
       display: flex; align-items: center; justify-content: space-between;
-
       flex-wrap: wrap; gap: 32px;
-
       position: relative;
-
       overflow: hidden;
-
     }
-
-
-
     #apk::before {
-
       content: 'APK';
-
       position: absolute; right: -20px; bottom: -30px;
-
       font-family: var(--head);
-
       font-size: 180px;
-
       font-weight: 800;
-
       color: rgba(57,224,110,0.04);
-
       letter-spacing: -8px;
-
       pointer-events: none;
-
     }
-
-
-
     .apk-text h2 {
-
       font-family: var(--head);
-
       font-size: clamp(28px, 4vw, 48px);
-
       font-weight: 800;
-
       text-transform: uppercase;
-
       letter-spacing: -1px;
-
       color: var(--text);
-
       margin-bottom: 10px;
-
     }
-
     .apk-text p {
-
       font-family: var(--head);
-
       font-weight: 300;
-
       font-size: 16px;
-
       color: var(--muted);
-
       max-width: 400px;
-
     }
 
-
-
-    /* ─────────────── FOOTER ─────────────── */
-
-    footer {
-
-      border-top: 1px solid var(--border);
-
-      padding: 40px 6%;
-
-      display: flex; align-items: center; justify-content: space-between;
-
-      flex-wrap: wrap; gap: 16px;
-
+    /* ─────────────── QR KOD BÖLÜMÜ ─────────────── */
+    #qr-section {
+      margin: 48px 6% 80px;
+      padding: 48px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 40px;
     }
 
+    .qr-image-wrap {
+      flex-shrink: 0;
+      width: 220px;
+      height: 220px;
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 4px solid rgba(57,224,110,0.4);
+      box-shadow: 0 0 30px rgba(57,224,110,0.1);
+    }
 
+    .qr-image-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
 
-    .footer-logo {
+    /* QR yüklenmeden önce placeholder */
+    .qr-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .qr-placeholder-icon { font-size: 64px; opacity: 0.3; }
+    .qr-placeholder-text { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 1px; }
 
+    .qr-text {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .qr-eyebrow {
       font-family: var(--mono);
-
-      font-size: 13px;
-
-      color: var(--muted);
-
-      letter-spacing: 2px;
-
-    }
-
-    .footer-logo b { color: var(--green); }
-
-
-
-    .footer-links { display: flex; gap: 24px; }
-
-    .footer-links a {
-
-      font-family: var(--mono);
-
-      font-size: 11px;
-
-      letter-spacing: 1px;
-
-      color: var(--muted);
-
-      text-decoration: none;
-
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: var(--green);
       text-transform: uppercase;
-
-      transition: color 0.2s;
-
     }
-
-    .footer-links a:hover { color: var(--text); }
-
-
-
-    /* ─────────────── ANIMATIONS ─────────────── */
-
-    @keyframes fadeUp {
-
-      from { opacity: 0; transform: translateY(20px); }
-
-      to   { opacity: 1; transform: translateY(0); }
-
+    .qr-title {
+      font-family: var(--head);
+      font-size: clamp(20px, 3vw, 30px);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: -0.5px;
+      color: var(--text);
+      line-height: 1.1;
     }
-
-
-
-    /* ─────────────── RESPONSIVE ─────────────── */
+    .qr-desc {
+      font-family: var(--head);
+      font-weight: 300;
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.5;
+      max-width: 360px;
+    }
 
     @media (max-width: 640px) {
+      #qr-section { flex-direction: column; align-items: flex-start; padding: 32px 24px; }
+    }
+    /* ──────────────────────────────────────────────── */
 
-      nav { padding: 0 5%; }
+    /* FOOTER */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 6%;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-logo { font-family: var(--mono); font-size: 13px; color: var(--muted); letter-spacing: 2px; }
+    .footer-logo b { color: var(--green); }
 
-      .nav-links { display: none; }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--text); }
 
-      header { padding: 90px 5% 60px; }
-
-      #apk { flex-direction: column; padding: 40px 28px; }
-
-      footer { flex-direction: column; align-items: flex-start; }
-
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
+    @media (max-width: 640px) {
+      nav { padding: 0 5%; }
+      .nav-links { display: none; }
+      header { padding: 90px 5% 60px; }
+      #apk { flex-direction: column; padding: 40px 28px; }
+      footer { flex-direction: column; align-items: flex-start; }
+    }
   </style>
-
 </head>
-
 <body>
 
-
-
   <!-- NAVBAR -->
-
   <nav>
-
     <div class="nav-logo">Hareket<span>Takibi</span></div>
-
     <ul class="nav-links">
-
       <li><a href="#home">Ana Sayfa</a></li>
-
       <li><a href="#nasil-calisir">Nasıl Çalışır?</a></li>
-
       <li><a href="#aktiviteler">Aktiviteler</a></li>
-
       <li><a href="#apk">APK İndir</a></li>
-
+      <li><a href="#qr-section">QR Kod</a></li>  <!-- ✅ YENİ -->
     </ul>
-
     <a href="app.html" class="nav-cta">▶ Canlı Takip</a>
-
   </nav>
 
-
-
   <!-- HERO -->
-
   <header id="home">
-
     <div class="hero-tag">// v1.0 — Gerçek Zamanlı Analiz</div>
-
     <h1 class="hero-h1">Hareketinin<br /><em>farkında</em><br />mısın?</h1>
-
     <p class="hero-sub">Telefon ivmeölçerini, eğittiğimiz model ile birleştirerek çeşitli fiziksel aktiviteleri milisaniyeler içinde sınıflandır.</p>
 
-
-
     <div class="hero-actions">
-
-      <a href="app.html" class="btn-launch">
-
-        <span>▶</span> Analizi Başlat
-
-      </a>
-
-      <a href="#apk" class="btn-apk">
-
-        <span>⬇</span> APK İndir
-
-      </a>
-
+      <a href="app.html" class="btn-launch"><span>▶</span> Analizi Başlat</a>
+      <a href="#apk" class="btn-apk"><span>⬇</span> APK İndir</a>
     </div>
-
-
 
     <div class="hero-ticker">
-
-      <div class="ticker-item">
-
-        <span class="ticker-val green">100+</span>
-
-        <span>Örnek / tahmin</span>
-
-      </div>
-
-      <div class="ticker-item">
-
-        <span class="ticker-val">5</span>
-
-        <span>Hareket tipi</span>
-
-      </div>
-
-      <div class="ticker-item">
-
-        <span class="ticker-val green">~0ms</span>
-
-        <span>İşlem gecikmesi</span>
-
-      </div>
-
-      <div class="ticker-item">
-
-        <span class="ticker-val">JS</span>
-
-        <span>Model çalışma ortamı</span>
-
-      </div>
-
+      <div class="ticker-item"><span class="ticker-val green">100+</span><span>Örnek / tahmin</span></div>
+      <div class="ticker-item"><span class="ticker-val">5</span><span>Hareket tipi</span></div>
+      <div class="ticker-item"><span class="ticker-val green">~0ms</span><span>İşlem gecikmesi</span></div>
+      <div class="ticker-item"><span class="ticker-val">JS</span><span>Model çalışma ortamı</span></div>
     </div>
-
   </header>
 
-
-
   <!-- NASIL ÇALIŞIR -->
-
-<section id="nasil-calisir">
-
-  <div class="section-eyebrow">// nasıl çalışır</div>
-
-  
-
-  <div class="features-container">
-
-    <h2 class="section-title">Dört adımda<br />akıllı analiz</h2>
-
-
-
-    <div class="features-grid">
-
-      <div class="feature-cell">
-
-        <div class="feature-icon">📡</div>
-
-        <div class="feature-label">Adım 01</div>
-
-        <div class="feature-title">Sensör Verisi</div>
-
-        <div class="feature-desc">Telefondaki ivmeölçer (accelerometer) X, Y, Z eksenlerindeki ivmeyi saniyede onlarca kez okur.</div>
-
+  <section id="nasil-calisir">
+    <div class="section-eyebrow">// nasıl çalışır</div>
+    <div class="features-container">
+      <h2 class="section-title">Dört adımda<br />akıllı analiz</h2>
+      <div class="features-grid">
+        <div class="feature-cell">
+          <div class="feature-icon">📡</div>
+          <div class="feature-label">Adım 01</div>
+          <div class="feature-title">Sensör Verisi</div>
+          <div class="feature-desc">Telefondaki ivmeölçer (accelerometer) X, Y, Z eksenlerindeki ivmeyi saniyede onlarca kez okur.</div>
+        </div>
+        <div class="feature-cell">
+          <div class="feature-icon">🧠</div>
+          <div class="feature-label">Adım 02</div>
+          <div class="feature-title">Karar Vakti</div>
+          <div class="feature-desc">Gerçek hareket verileriyle eğitilmiş model, ortalama ivme değerlerine bakarak hangi hareketi yaptığını çözer.</div>
+        </div>
+        <div class="feature-cell">
+          <div class="feature-icon">⚡</div>
+          <div class="feature-label">Adım 03</div>
+          <div class="feature-title">Anlık Tahmin</div>
+          <div class="feature-desc">Model tamamen tarayıcıda çalışır — sunucuya veri gönderilmez, internet gerekmez, gizliliğin korunur.</div>
+        </div>
+        <div class="feature-cell">
+          <div class="feature-icon">📊</div>
+          <div class="feature-label">Adım 04</div>
+          <div class="feature-title">Süre Takibi</div>
+          <div class="feature-desc">Her aktivitede ne kadar zaman geçirdiğini kaydeder. Çok oturduğunda seni harekete geçirmek için uyarır.</div>
+        </div>
       </div>
-
-      <div class="feature-cell">
-
-        <div class="feature-icon">🧠</div>
-
-        <div class="feature-label">Adım 02</div>
-
-        <div class="feature-title">Karar Vakti</div>
-
-        <div class="feature-desc">Gerçek hareket verileriyle eğitilmiş model, ortalama ivme değerlerine bakarak hangi hareketi yaptığını çözer.</div>
-
-      </div>
-
-      <div class="feature-cell">
-
-        <div class="feature-icon">⚡</div>
-
-        <div class="feature-label">Adım 03</div>
-
-        <div class="feature-title">Anlık Tahmin</div>
-
-        <div class="feature-desc">Model tamamen tarayıcıda çalışır — sunucuya veri gönderilmez, internet gerekmez, gizliliğin korunur.</div>
-
-      </div>
-
-      <div class="feature-cell">
-
-        <div class="feature-icon">📊</div>
-
-        <div class="feature-label">Adım 04</div>
-
-        <div class="feature-title">Süre Takibi</div>
-
-        <div class="feature-desc">Her aktivitede ne kadar zaman geçirdiğini kaydeder. Çok oturduğunda seni harekete geçirmek için uyarır.</div>
-
-      </div>
-
     </div>
-
-  </div>
-
-</section>
+  </section>
 
   <!-- AKTİVİTELER -->
-
   <section id="aktiviteler">
-
     <div class="section-eyebrow">// tanınan hareketler</div>
-
     <h2 class="section-title">5 farklı<br />hareket tipi</h2>
-
-
-
     <div class="aktivite-scroll">
-
       <div class="akt-pill"><div class="icon">🚶</div><div class="name">Yürüme</div></div>
-
       <div class="akt-pill"><div class="icon">🏃</div><div class="name">Koşma</div></div>
-
       <div class="akt-pill"><div class="icon">⬆️</div><div class="name">Zıplama</div></div>
-
       <div class="akt-pill"><div class="icon">🪜</div><div class="name">Merdiven</div></div>
-
       <div class="akt-pill"><div class="icon">🪑</div><div class="name">Oturma</div></div>
-
     </div>
-
   </section>
-
-
 
   <!-- APK -->
-
   <section id="apk">
-
     <div class="apk-text">
-
       <h2>Android Uygulaması</h2>
-
       <p>Doğrudan cihazına kur, tarayıcı olmadan çalıştır. Sensör erişimi için optimize edilmiş Android APK.</p>
-
     </div>
-
-    <!-- ↓ Google Drive linkini buraya yapıştır -->
-
     <a href="https://drive.google.com/drive/folders/1IrEUHVu3nd5VFO1tAVvOynNw-55APq2z?usp=drive_link" target="_blank" class="btn-launch">
-
       ⬇ APK İndir
-
     </a>
-
   </section>
 
+  <!-- ✅ QR KOD BÖLÜMÜ (APK altı, Footer üstü) -->
+  <section id="qr-section">
+    <!-- Sol: QR Görsel -->
+    <div class="qr-image-wrap">
+      <!--
+        QR kodunu buraya ekle:
+        <img src="qr.png" alt="QR Kod" />
 
-
-  <!-- FOOTER -->
-
-  <footer>
-
-    <div class="footer-logo">Hareket<b>Takibi</b> — <span style="color:#2e4057">Geliştiriciler: Ahmet Yasin Bal - Abdülkerim Atuş</span></div>
-
-    <div class="footer-links">
-
-      <a href="https://github.com/ahmty55" target="_blank">GitHub</a>
-
-      <a href="app.html">Canlı Takip</a>
-
-      <a href="https://www.linkedin.com/in/ahmet-yasin-bal/" targer="_blank">Linkedin</a>
-
+        Resmi aynı klasöre "qr.png" adıyla koy,
+        ya da farklı bir isim verirsen src'yi güncelle.
+      -->
+      <div class="qr-placeholder">
+        <div class="qr-placeholder-icon">▦</div>
+        <div class="qr-placeholder-text">qr.png</div>
+      </div>
     </div>
 
+    <!-- Sağ: Açıklama -->
+    <div class="qr-text">
+      <div class="qr-eyebrow">// hızlı erişim</div>
+      <div class="qr-title">Daha kolay erişiminiz<br />için sitemizin QR kodu</div>
+      <p class="qr-desc">Telefonunuzun kamerasını QR koda tutun, siteye anında ulaşın — adres yazmaya gerek yok.</p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">Hareket<b>Takibi</b> — <span style="color:#2e4057">Geliştiriciler: Ahmet Yasin Bal - Abdülkerim Atuş</span></div>
+    <div class="footer-links">
+      <a href="https://github.com/ahmty55" target="_blank">GitHub</a>
+      <a href="app.html">Canlı Takip</a>
+      <a href="https://www.linkedin.com/in/ahmet-yasin-bal/" target="_blank">Linkedin</a>
+    </div>
   </footer>
-
-
 
 </body>
 </html>
