@@ -451,6 +451,55 @@
       #apk { flex-direction: column; padding: 40px 28px; }
       footer { flex-direction: column; align-items: flex-start; }
     }
+
+    /* QR Kodun sağa gelmesi için wrapper */
+.hero-flex-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 30px;
+    margin-top: 20px;
+}
+
+/* QR Kutusu tasarımı */
+.hero-qr-side {
+    flex-shrink: 0;
+    background: rgba(13, 17, 23, 0.6);
+    border: 1px solid var(--border);
+    padding: 12px;
+    border-radius: 12px;
+    text-align: center;
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+}
+
+.hero-qr-side:hover {
+    border-color: var(--green);
+    box-shadow: 0 0 20px rgba(57, 224, 110, 0.15);
+}
+
+.hero-qr-side img {
+    width: 130px;
+    height: 130px;
+    border-radius: 6px;
+    display: block;
+}
+
+.hero-qr-side span {
+    display: block;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--green);
+    margin-top: 8px;
+    letter-spacing: 1px;
+}
+
+/* Mobilde QR çok yer kaplamasın diye gizliyoruz */
+@media (max-width: 850px) {
+    .hero-qr-side { display: none; }
+    .hero-flex-container { flex-direction: column; align-items: flex-start; }
+}
   </style>
 </head>
 <body>
@@ -485,6 +534,31 @@
       <div class="ticker-item"><span class="ticker-val green">~0ms</span><span>İşlem gecikmesi</span></div>
       <div class="ticker-item"><span class="ticker-val">JS</span><span>Model çalışma ortamı</span></div>
     </div>
+
+    <header id="home">
+    <div class="hero-tag">// v1.0 — Gerçek Zamanlı Analiz</div>
+    
+    <div class="hero-flex-container">
+        <div class="hero-text-block">
+            <h1 class="hero-h1">Hareketinin<br /><em>farkında</em><br />mısın?</h1>
+            <p class="hero-sub">Telefon ivmeölçerini, eğittiğimiz model ile birleştirerek çeşitli fiziksel aktiviteleri milisaniyeler içinde sınıflandır.</p>
+        </div>
+
+        <div class="hero-qr-side">
+            <img src="qrkodsite.png" alt="QR Kod" />
+            <span>HIZLI ERİŞİM</span>
+        </div>
+    </div>
+
+    <div class="hero-actions">
+      <a href="app.html" class="btn-launch"><span>▶</span> Analizi Başlat</a>
+      <a href="#apk" class="btn-apk"><span>⬇</span> APK İndir</a>
+    </div>
+
+    <div class="hero-ticker">
+      ...
+    </div>
+</header>
   </header>
 
   <!-- NASIL ÇALIŞIR -->
@@ -559,13 +633,14 @@
     </div>
 
     <!-- Sağ: Açıklama -->
+    <!--
     <div class="qr-text">
       <div class="qr-eyebrow">// hızlı erişim</div>
       <div class="qr-title">Daha kolay erişiminiz<br />için sitemizin QR kodu</div>
       <p class="qr-desc">Telefonunuzun kamerasını QR koda tutun, siteye anında ulaşın.</p>
     </div>
   </section>
-
+-->
   <!-- FOOTER -->
   <footer>
     <div class="footer-logo">Hareket<b>Takibi</b> — <span style="color:#2e4057">Geliştiriciler: Ahmet Yasin Bal - Abdülkerim Atuş</span></div>
