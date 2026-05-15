@@ -511,6 +511,17 @@ async function requestWakeLock() {
     .hero-qr-side { display: none; }
     .hero-flex-container { flex-direction: column; align-items: flex-start; }
 }
+    .hero-ticker {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 56px;
+      display: flex; gap: 32px;
+      animation: fadeUp 1s 0.5s ease both;
+    }
+    .ticker-item { display: flex; flex-direction: column; gap: 4px; }
+    .ticker-val { font-size: 22px; color: var(--text); font-weight: 400; }
+    .ticker-val.green { color: var(--green); }
   </style>
 </head>
 <body>
@@ -536,6 +547,12 @@ async function requestWakeLock() {
             <h1 class="hero-h1">Hareketinin<br /><em>farkında</em><br />mısın?</h1>
             <p class="hero-sub">Telefon ivmeölçerini, eğittiğimiz model ile birleştirerek çeşitli fiziksel aktiviteleri milisaniyeler içinde sınıflandır.</p>
         </div>
+          <div class="hero-ticker">
+      <div class="ticker-item"><span class="ticker-val green">100+</span><span>Örnek / tahmin</span></div>
+      <div class="ticker-item"><span class="ticker-val">5</span><span>Hareket tipi</span></div>
+      <div class="ticker-item"><span class="ticker-val green">~0ms</span><span>İşlem gecikmesi</span></div>
+      <div class="ticker-item"><span class="ticker-val">JS</span><span>Model çalışma ortamı</span></div>
+    </div>
 
         <div class="hero-qr-side">
             <img src="qrkodsite.png" alt="QR Kod" />
