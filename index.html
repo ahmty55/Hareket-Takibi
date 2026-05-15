@@ -120,15 +120,6 @@
       background-size: 60px 60px;
       opacity: 0.35;
     }
-    header::after {
-      content: '';
-      position: absolute;
-      top: -100px; right: -100px;
-      width: 600px; height: 600px;
-      border-radius: 50%;
-      background: radial-gradient(circle, #39e06e18 0%, transparent 70%);
-      pointer-events: none;
-    }
 
     .hero-tag {
       font-family: var(--mono);
@@ -272,14 +263,6 @@
     .feature-title { font-family: var(--head); font-size: 20px; font-weight: 800; text-transform: uppercase; color: var(--text); margin-bottom: 10px; letter-spacing: 0.5px; }
     .feature-desc { font-family: var(--head); font-weight: 300; font-size: 14px; color: var(--muted); line-height: 1.5; }
 
-    @media (max-width: 1024px) {
-      .features-container { flex-direction: column; gap: 40px; }
-      .section-title { flex: none; max-width: 100%; }
-    }
-    @media (max-width: 650px) {
-      .features-grid { grid-template-columns: 1fr; }
-    }
-
     /* AKTİVİTELER */
     #aktiviteler { padding: 100px 6%; border-top: 1px solid var(--border); }
 
@@ -390,9 +373,9 @@
     .hero-flex-container {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start; /* Sola yanaşık yaptık */
       width: 100%;
-      gap: 20px;
+      gap: 80px; /* Metin ve QR arası boşluğu artırdık */
       margin-top: 20px;
     }
 
@@ -405,6 +388,7 @@
       text-align: center;
       backdrop-filter: blur(5px);
       transition: all 0.3s ease;
+      margin-right: 8%; /* Sağdan ekstra boşluk vererek sola ittik */
     }
 
     .hero-qr-side:hover {
@@ -413,8 +397,8 @@
     }
 
     .hero-qr-side img {
-      width: 260px;
-      height: 260px;
+      width: 240px; /* Boyutu biraz daha optimize ettik */
+      height: 240px;
       border-radius: 6px;
       display: block;
     }
@@ -426,6 +410,10 @@
       color: var(--green);
       margin-top: 8px;
       letter-spacing: 1px;
+    }
+
+    @media (max-width: 1100px) {
+       .hero-flex-container { gap: 40px; }
     }
 
     @media (max-width: 850px) {
