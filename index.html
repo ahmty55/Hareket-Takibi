@@ -1,18 +1,20 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <script>// Request the screen wake lock
-let wakeLock = null;
-async function requestWakeLock() {
-  try {
-    wakeLock = await navigator.wakeLock.request('screen');
-  } catch (err) {
-    console.error(err.name, err.message);
-  }
-}</script>
+  <script>
+    // Request the screen wake lock
+    let wakeLock = null;
+    async function requestWakeLock() {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+      } catch (err) {
+        console.error(err.name, err.message);
+      }
+    }
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title> Canlı Hareket Takibi</title>
+  <title>Canlı Hareket Takibi</title>
   <link rel="icon" type="image/png" href="logosite2.png">
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
@@ -159,7 +161,7 @@ async function requestWakeLock() {
       font-family: var(--head);
       font-weight: 300;
       font-size: clamp(16px, 2.5vw, 22px);
-      color: var(--white);
+      color: var(--text);
       max-width: 540px;
       line-height: 1.5;
       margin-top: 24px;
@@ -212,8 +214,9 @@ async function requestWakeLock() {
       font-family: var(--mono);
       font-size: 11px;
       color: var(--muted);
-      margin-top: 56px;
+      margin-top: 40px;
       display: flex; gap: 32px;
+      flex-wrap: wrap;
       animation: fadeUp 1s 0.5s ease both;
     }
     .ticker-item { display: flex; flex-direction: column; gap: 4px; }
@@ -349,84 +352,6 @@ async function requestWakeLock() {
       max-width: 400px;
     }
 
-    /* ─────────────── QR KOD BÖLÜMÜ ─────────────── */
-<!--    #qr-section {
-      margin: 48px 6% 80px;
-      padding: 48px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      gap: 40px;
-      margin-right: 100px;
-    }
-
-    .qr-image-wrap {
-      flex-shrink: 0;
-      width: 220px;
-      height: 220px;
-      background: #fff;
-      border-radius: 10px;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 4px solid rgba(57,224,110,0.4);
-      box-shadow: 0 0 30px rgba(57,224,110,0.1);
-    }
-
-    .qr-image-wrap img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-
-    /* QR yüklenmeden önce placeholder */
-    .qr-placeholder {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-    }
-    .qr-placeholder-icon { font-size: 64px; opacity: 0.3; }
-    .qr-placeholder-text { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 1px; }
-
-    .qr-text {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .qr-eyebrow {
-      font-family: var(--mono);
-      font-size: 10px;
-      letter-spacing: 3px;
-      color: var(--green);
-      text-transform: uppercase;
-    }
-    .qr-title {
-      font-family: var(--head);
-      font-size: clamp(20px, 3vw, 30px);
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: -0.5px;
-      color: var(--text);
-      line-height: 1.1;
-    }
-    .qr-desc {
-      font-family: var(--head);
-      font-weight: 300;
-      font-size: 15px;
-      color: var(--muted);
-      line-height: 1.5;
-      max-width: 360px;
-    }
-
-    @media (max-width: 640px) {
-      #qr-section { flex-direction: column; align-items: flex-start; padding: 32px 24px; }
-    } -->
-    /* ──────────────────────────────────────────────── */
-
     /* FOOTER */
     footer {
       border-top: 1px solid var(--border);
@@ -462,71 +387,55 @@ async function requestWakeLock() {
       footer { flex-direction: column; align-items: flex-start; }
     }
 
-    /* QR Kodun sağa gelmesi için wrapper */
-.hero-flex-container {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    gap: 5px;
-    margin-top: 20px;
-    margin-right: 100px;
-}
-
-/* QR Kutusu tasarımı */
-.hero-qr-side {
-    flex-shrink: 0;
-    background: rgba(13, 17, 23, 0.6);
-    border: 1px solid var(--border);
-    padding: 20px;
-    border-radius: 12px;
-    text-align: center;
-    backdrop-filter: blur(5px);
-    transition: all 0.3s ease;
-}
-
-.hero-qr-side:hover {
-    border-color: var(--green);
-    box-shadow: 0 0 20px rgba(57, 224, 110, 0.15);
-}
-
-.hero-qr-side img {
-    width: 300px;
-    height: 300px;
-    border-radius: 6px;
-    display: block;
-}
-
-.hero-qr-side span {
-    display: block;
-    font-family: var(--mono);
-    font-size: 9px;
-    color: var(--green);
-    margin-top: 8px;
-    letter-spacing: 1px;
-}
-
-/* Mobilde QR çok yer kaplamasın diye gizliyoruz */
-@media (max-width: 850px) {
-    .hero-qr-side { display: none; }
-    .hero-flex-container { flex-direction: column; align-items: flex-start; }
-}
-    .hero-ticker {
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 56px;
-      display: flex; gap: 32px;
-      animation: fadeUp 1s 0.5s ease both;
+    .hero-flex-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      gap: 20px;
+      margin-top: 20px;
     }
-    .ticker-item { display: flex; flex-direction: column; gap: 4px; }
-    .ticker-val { font-size: 22px; color: var(--text); font-weight: 400; }
-    .ticker-val.green { color: var(--green); }
+
+    .hero-qr-side {
+      flex-shrink: 0;
+      background: rgba(13, 17, 23, 0.6);
+      border: 1px solid var(--border);
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      backdrop-filter: blur(5px);
+      transition: all 0.3s ease;
+    }
+
+    .hero-qr-side:hover {
+      border-color: var(--green);
+      box-shadow: 0 0 20px rgba(57, 224, 110, 0.15);
+    }
+
+    .hero-qr-side img {
+      width: 260px;
+      height: 260px;
+      border-radius: 6px;
+      display: block;
+    }
+
+    .hero-qr-side span {
+      display: block;
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--green);
+      margin-top: 8px;
+      letter-spacing: 1px;
+    }
+
+    @media (max-width: 850px) {
+      .hero-qr-side { display: none; }
+      .hero-flex-container { flex-direction: column; align-items: flex-start; }
+    }
   </style>
 </head>
 <body>
 
-  <!-- NAVBAR -->
   <nav>
     <div class="nav-logo">Hareket<span>Takibi</span></div>
     <ul class="nav-links">
@@ -538,21 +447,21 @@ async function requestWakeLock() {
     <a href="app.html" class="nav-cta">▶ Canlı Takip</a>
   </nav>
 
-  <!-- HERO -->
-<header id="home">
+  <header id="home">
     <div class="hero-tag">// v1.0 — Gerçek Zamanlı Analiz</div>
     
     <div class="hero-flex-container">
         <div class="hero-text-block">
             <h1 class="hero-h1">Hareketinin<br /><em>farkında</em><br />mısın?</h1>
             <p class="hero-sub">Telefon ivmeölçerini, eğittiğimiz model ile birleştirerek çeşitli fiziksel aktiviteleri milisaniyeler içinde sınıflandır.</p>
+            
+            <div class="hero-ticker">
+              <div class="ticker-item"><span class="ticker-val green">100+</span><span>Örnek / tahmin</span></div>
+              <div class="ticker-item"><span class="ticker-val">5</span><span>Hareket tipi</span></div>
+              <div class="ticker-item"><span class="ticker-val green">~0ms</span><span>İşlem gecikmesi</span></div>
+              <div class="ticker-item"><span class="ticker-val">JS</span><span>Model çalışma ortamı</span></div>
+            </div>
         </div>
-          <div class="hero-ticker">
-      <div class="ticker-item"><span class="ticker-val green">100+</span><span>Örnek / tahmin</span></div>
-      <div class="ticker-item"><span class="ticker-val">5</span><span>Hareket tipi</span></div>
-      <div class="ticker-item"><span class="ticker-val green">~0ms</span><span>İşlem gecikmesi</span></div>
-      <div class="ticker-item"><span class="ticker-val">JS</span><span>Model çalışma ortamı</span></div>
-    </div>
 
         <div class="hero-qr-side">
             <img src="qrkodsite.png" alt="QR Kod" />
@@ -564,13 +473,8 @@ async function requestWakeLock() {
       <a href="app.html" class="btn-launch"><span>▶</span> Analizi Başlat</a>
       <a href="#apk" class="btn-apk"><span>⬇</span> APK İndir</a>
     </div>
+  </header>
 
-    <div class="hero-ticker">
-      ...
-    </div>
-</header>
-
-  <!-- NASIL ÇALIŞIR -->
   <section id="nasil-calisir">
     <div class="section-eyebrow">// nasıl çalışır</div>
     <div class="features-container">
@@ -592,7 +496,7 @@ async function requestWakeLock() {
           <div class="feature-icon">⚡</div>
           <div class="feature-label">Adım 03</div>
           <div class="feature-title">Anlık Tahmin</div>
-          <div class="feature-desc">Model tamamen tarayıcıda çalışır — sunucuya veri gönderilmez, internet gerekmez, gizliliğin korunur. Eğer daha iyi bir deneyim istiyorsanız mobil uygulamayı deneyebilirsin.</div>
+          <div class="feature-desc">Model tamamen tarayıcıda çalışır — sunucuya veri gönderilmez, internet gerekmez.</div>
         </div>
         <div class="feature-cell">
           <div class="feature-icon">📊</div>
@@ -604,7 +508,6 @@ async function requestWakeLock() {
     </div>
   </section>
 
-  <!-- AKTİVİTELER -->
   <section id="aktiviteler">
     <div class="section-eyebrow">// tanınan hareketler</div>
     <h2 class="section-title">5 farklı<br />hareket tipi</h2>
@@ -617,7 +520,6 @@ async function requestWakeLock() {
     </div>
   </section>
 
-  <!-- APK -->
   <section id="apk">
     <div class="apk-text">
       <h2>Android Uygulaması</h2>
@@ -627,30 +529,7 @@ async function requestWakeLock() {
       ⬇ APK İndir
     </a>
   </section>
-<!--
 
-  <section id="qr-section">
-
-    <div class="qr-image-wrap">
-
- <img src="qrkodsite.png" alt="QR Kod" />
-      
-      <div class="qr-placeholder">
-        <div class="qr-placeholder-icon"></div>
-        <div class="qr-placeholder-text"></div>
-      </div>
-    </div>
--->
-    <!-- Sağ: Açıklama -->
-    <!--
-    <div class="qr-text">
-      <div class="qr-eyebrow">// hızlı erişim</div>
-      <div class="qr-title">Daha kolay erişiminiz<br />için sitemizin QR kodu</div>
-      <p class="qr-desc">Telefonunuzun kamerasını QR koda tutun, siteye anında ulaşın.</p>
-    </div>
-  </section>
--->
-  <!-- FOOTER -->
   <footer>
     <div class="footer-logo">Hareket<b>Takibi</b> — <span style="color:#2e4057">Geliştiriciler: Ahmet Yasin Bal - Abdülkerim Atuş</span></div>
     <div class="footer-links">
