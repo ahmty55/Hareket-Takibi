@@ -107,7 +107,7 @@
       min-height: 100vh;
       display: flex; flex-direction: column;
       justify-content: center; align-items: flex-start;
-      padding: 100px 6% 80px;
+      padding: 100px 6% 80px; /* Bu %6'lık kısım hizayı korur */
       position: relative;
       overflow: hidden;
     }
@@ -373,9 +373,8 @@
     .hero-flex-container {
       display: flex;
       align-items: center;
-      justify-content: space-around; /* Boşluğu metin ve QR arasında dengeli dağıttık */
+      justify-content: flex-start; /* Yazıyı en sola sabitledik */
       width: 100%;
-      gap: 40px;
       margin-top: 20px;
     }
 
@@ -388,6 +387,8 @@
       text-align: center;
       backdrop-filter: blur(5px);
       transition: all 0.3s ease;
+      margin-left: auto; /* Yazıdan olabildiğince uzaklaşarak sağa itilir */
+      margin-right: 15%; /* Sağ kenara çok yapışmaması için dengeli bir boşluk */
     }
 
     .hero-qr-side:hover {
@@ -396,8 +397,8 @@
     }
 
     .hero-qr-side img {
-      width: 260px;
-      height: 260px;
+      width: 250px;
+      height: 250px;
       border-radius: 6px;
       display: block;
     }
@@ -411,9 +412,12 @@
       letter-spacing: 1px;
     }
 
+    @media (max-width: 1100px) {
+       .hero-qr-side { margin-right: 5%; }
+    }
+
     @media (max-width: 850px) {
       .hero-qr-side { display: none; }
-      .hero-flex-container { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
